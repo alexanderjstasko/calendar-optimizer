@@ -2314,6 +2314,38 @@ def replace_block(event_id: str, now_iso: str, replaced_by: str) -> list[str]:
     return gone
 
 
+def restore_replaced(move_id: str, now: _dt.datetime, now_iso: str) -> list[str]:
+    """
+    Undo replace_block() when an approved move is revoked: the blocks it took
+    off (the old block and its travel, replaced_by = move_id) come back onto
+    the calendar, re-linked to their task/goal. Only while the old time is
+    still ahead: a block in the past would be settled to Notion as if it had
+    happened. Returns the proposal ids restored.
+    """
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM proposed_events WHERE replaced_by = ? AND status = 'superseded' AND promoted_event_id IS NOT NULL",
+            (move_id,)).fetchall()]
+    restored = []
+    with batch():
+        for p in rows:
+            try:
+                end = parse_event_time(p["end"], p["all_day"])
+            except (ValueError, TypeError):
+                continue
+            if end <= now:
+                continue
+            with get_conn() as conn:
+                conn.execute("UPDATE events SET status = 'confirmed', deleted_at = NULL WHERE source = ? AND source_event_id = ?",
+                             (OPTIMIZER_SOURCE, p["id"]))
+                conn.execute("UPDATE proposed_events SET status = 'promoted', decided_at = ?, replaced_by = NULL WHERE id = ?",
+                             (now_iso, p["id"]))
+                if p["item_type"] in ("task", "goal") and p.get("item_id"):
+                    _mark_item_scheduled(conn, p["item_type"], p["item_id"], p["promoted_event_id"])
+            restored.append(p["id"])
+    return restored
+
+
 def remove_item_blocks(item_type: str, item_id: str, now_iso: str) -> dict[str, list[str]]:
     """
     A task or goal deleted in Notion: its pending proposals are superseded

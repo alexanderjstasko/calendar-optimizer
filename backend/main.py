@@ -479,6 +479,9 @@ def _revoke(proposal: dict, now_iso: str) -> dict:
     # A routine block comes back as 'rejected' (see db.revoke_proposal), anything else as 'proposed'.
     after = db.get_proposal(proposal["id"]) or {}
     out = {"proposal_id": proposal["id"], "status": after.get("status", "proposed"), "event_id": event_id, "event": "cancelled"}
+    if proposal.get("replaces_event_id"):
+        # Undoing a move puts the block it replaced (and its travel) back where it was.
+        out["restored"] = db.restore_replaced(proposal["id"], datetime.now(timezone.utc), now_iso)
     if proposal["item_type"] == "event":
         try:
             import scout

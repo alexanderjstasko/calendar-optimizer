@@ -336,3 +336,49 @@ def test_conflict_check_asks_the_model_once_per_clash(monkeypatch):
     _fixed("drinks", "2026-10-21T18:30:00-04:00", "2026-10-21T19:30:00-04:00", "Drinks")
     triggers.conflict_check(now=NOW)
     assert len(calls) == 2
+
+
+def _approved_move(monkeypatch):
+    """An approved block with travel, a move for it approved over HTTP: (old block id, travel id, move id)."""
+    gid = _goal("swim", "Swim", priority="Low")
+    block = _approved_block("goal", gid, "Swim", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00",
+                            travel=("2026-10-21T17:30:00-04:00", "2026-10-21T18:00:00-04:00"))
+    block_event = db.get_proposal(block)["promoted_event_id"]
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    db.create_optimizer_run("trigger_m", now, "api", "m", "a", "b", kind="trigger")
+    (move,) = db.insert_proposals("trigger_m", [{**_ev("m1", "goal", gid, "Swim", "2026-10-22T18:00:00-04:00",
+                                                      "2026-10-22T20:00:00-04:00", replaces=block_event), "status": "proposed"}], now)
+    assert TestClient(main.app).post(f"/optimizer/proposals/{move}/approve").status_code == 200
+    return block, f"{block}"[:-1] + "2", move
+
+
+class _Clock(dt.datetime):
+    at = NOW
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls.at.astimezone(tz) if tz else cls.at
+
+
+def test_revoking_a_move_brings_back_the_block_it_replaced(monkeypatch):
+    block, travel, move = _approved_move(monkeypatch)
+    monkeypatch.setattr(main, "datetime", _Clock)  # Tuesday morning: the old Wednesday block is still ahead
+    r = TestClient(main.app).post(f"/optimizer/proposals/{move}/revoke")
+    assert r.status_code == 200 and sorted(r.json()["restored"]) == sorted([block, travel])
+    assert db.get_proposal(block)["status"] == "promoted" and db.get_proposal(block)["replaced_by"] is None
+    assert db.get_proposal(travel)["status"] == "promoted"
+    shown = db.get_schedule_x_events(calendar_id="optimizer")
+    assert sorted(e["start"][:16] for e in shown) == ["2026-10-21T17:30", "2026-10-21T18:00"]
+    assert json.loads(db.get_goals()[0]["scheduled_event_ids"]) == [db.get_proposal(block)["promoted_event_id"]]
+
+
+def test_revoking_a_move_after_the_old_time_restores_nothing(monkeypatch):
+    block, travel, move = _approved_move(monkeypatch)
+    _Clock.at = dt.datetime(2026, 10, 21, 21, 0, tzinfo=NY)  # the old block's time has passed
+    monkeypatch.setattr(main, "datetime", _Clock)
+    try:
+        r = TestClient(main.app).post(f"/optimizer/proposals/{move}/revoke")
+    finally:
+        _Clock.at = NOW
+    assert r.status_code == 200 and r.json()["restored"] == []
+    assert db.get_proposal(block)["status"] == "superseded"
