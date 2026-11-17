@@ -1,0 +1,26 @@
+# Runtime dependencies for backend/, pinned to the versions validated in the
+# project venv. Every entry is pure Python or ships an ARM64 (aarch64) Linux
+# wheel, so this file installs cleanly on Raspberry Pi OS as well as macOS.
+# Regenerate the pins from the venv whenever a dependency is added or bumped.
+
+# Web server + background jobs
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+APScheduler==3.11.3
+
+# Config + HTTP
+python-dotenv==1.2.2
+requests==2.34.2
+
+# Google Calendar adapter
+google-api-python-client==2.198.0
+google-auth==2.56.2
+google-auth-oauthlib==1.4.0
+google-auth-httplib2==0.4.0
+
+# Apple / Outlook / Partiful ICS adapters
+icalendar==7.3.0
+recurring-ical-events==3.8.2
+
+# Claude adapter (backend/llm_client.py, CLAUDE_BACKEND=api)
+anthropic==1.7.0

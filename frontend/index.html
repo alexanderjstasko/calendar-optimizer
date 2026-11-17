@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Calendar</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!-- Installable web app: home-screen icon, standalone window, status bar colour. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1f2a" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Calendar" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Page colour before the app's CSS arrives (no white flash in dark mode). -->
+    <style>
+      html { background: #f6f7fb; }
+      @media (prefers-color-scheme: dark) { html { background: #14161e; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

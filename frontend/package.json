@@ -1,0 +1,30 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.10.1",
+    "@schedule-x/calendar": "^4.9.1",
+    "@schedule-x/calendar-controls": "^4.9.1",
+    "@schedule-x/current-time": "^4.9.1",
+    "@schedule-x/event-modal": "^4.9.1",
+    "@schedule-x/events-service": "^4.9.1",
+    "@schedule-x/preact": "^4.0.0",
+    "@schedule-x/theme-default": "^4.9.1",
+    "preact": "^10.29.7",
+    "temporal-polyfill": "^0.3.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "vite": "^8.2.0"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
+  }
+}

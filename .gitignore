@@ -1,0 +1,31 @@
+# Secrets and local credentials (.env.example is the template)
+.env
+.env.*
+!.env.example
+# Personal words deploy/leak-check.sh refuses to publish
+.leak-denylist
+backend/google_credentials*.json
+backend/google_token.json
+backend/token.json
+
+# Live data (SQLite + WAL/SHM siblings)
+*.db
+*.db-wal
+*.db-shm
+*.db.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS / editor
+.DS_Store
+
+# Learned scheduling preferences: machine-written per host (backend/preferences.py)
+preferences.learned.md

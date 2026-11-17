@@ -1,0 +1,15 @@
+# Daily backup to the calendar_optimizer-data repo (deploy/backup-data.sh).
+# Template: setup-pi.sh fills in @USER@, @HOME@ and @REPO@ and installs it
+# together with calendar-backup.timer.
+
+[Unit]
+Description=Back up calendar_optimizer data to GitHub
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@REPO@
+Environment=HOME=@HOME@
+ExecStart=@REPO@/deploy/backup-data.sh

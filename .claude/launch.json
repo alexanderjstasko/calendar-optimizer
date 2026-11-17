@@ -1,0 +1,64 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": ".venv/bin/python3",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "--app-dir",
+        "backend",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "backend-8001",
+      "runtimeExecutable": ".venv/bin/python3",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "--app-dir",
+        "backend",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8001"
+      ],
+      "port": 8001
+    },
+    {
+      "name": "frontend-local",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "VITE_API_URL=http://localhost:8000 exec npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "exec npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "frontend-pi",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "VITE_API_URL=\"${PI_API_URL:?set PI_API_URL, e.g. http://pi.example-tailnet.ts.net:8000}\" exec npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173"
+      ],
+      "port": 5173
+    }
+  ]
+}

@@ -1,0 +1,2241 @@
+/* =============================================================================
+   Design tokens. Shared with the review tabs (frontend/src/review/review.css),
+   which use var(--app-*), var(--radius-*), var(--shadow-*) and the kind colours
+   var(--k-<kind>) / var(--k-<kind>-ink) (kind = task | goal | travel | event |
+   free) and never define palette values of their own. Light by default; dark
+   follows the OS (prefers-color-scheme), and app.jsx mirrors it into
+   Schedule-X with calendar.setTheme().
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces and text */
+  --app-bg: #f6f7fb; /* page background */
+  --app-surface: #ffffff; /* cards, header, tab bar */
+  --app-surface-2: #f0f2f8; /* quiet fills: hover, segmented-control track */
+  --app-raised: #ffffff; /* the selected segment, popovers */
+  --app-border: #e3e6ef; /* card and control outlines */
+  --app-grid: #eceef4; /* calendar hour/day lines, quieter than borders */
+  --app-text: #1b1d2a;
+  --app-text-muted: #626780;
+  --app-text-faint: #8a8fa6; /* hour labels, weekday names */
+
+  /* Accent: primary buttons, today, links, badges */
+  --app-accent: #4f5fd1;
+  --app-accent-hover: #4351bd;
+  --app-accent-ink: #ffffff; /* text on --app-accent */
+  --app-accent-container: #e8ebfc;
+  --app-accent-on-container: #232c74;
+
+  /* Proposed (pending) items: the calendar preview and its legend */
+  --app-preview: #8a63d2;
+  --app-preview-container: #ece4fb;
+  --app-preview-ink: #48288a;
+  --app-preview-fill: rgba(138, 99, 210, 0.09);
+
+  /* Approve / positive (the optimizer's green) */
+  --app-ok: #1f7a3f;
+  --app-ok-container: #dcf3e3;
+  --app-ok-ink: #0b3a1d;
+
+  --app-error: #b3261e;
+  --app-error-bg: #fdecea;
+  --app-error-border: #f5c2be;
+
+  /* Toggle switches (review tabs) */
+  --app-switch-off: #d4d8e3;
+  --app-switch-knob: #ffffff;
+
+  --app-now: #e5484d; /* current-time line */
+  --app-today-tint: rgba(79, 95, 209, 0.045);
+  --app-free-fill: rgba(196, 150, 60, 0.09); /* derived free time behind the grid: warm sand */
+  --app-free-ink: rgba(150, 108, 30, 0.75);
+  --app-work-fill: rgba(79, 95, 209, 0.055); /* weekday work band behind the grid */
+  --app-work-ink: rgba(79, 95, 209, 0.55);
+  --app-sleep-fill: rgba(98, 103, 128, 0.07); /* the part of the sleep range inside the drawn grid */
+  --app-sleep-ink: rgba(98, 103, 128, 0.55);
+
+  /* Calendar event fills: synced calendars (fixed; their colour bar is the
+     accent) and approved plan items */
+  --ev-fixed-fill: #eaedfc;
+  --ev-fixed-ink: #252d6e;
+  --ev-plan: #2e8a4e;
+  --ev-plan-fill: #e1f4e7;
+  --ev-plan-ink: #0e3d20;
+
+  /* Kind colours (review tabs; same as the old approvals page) */
+  --k-task: #e4e8fb;
+  --k-task-ink: #1b234f;
+  --k-goal: #dcf3e3;
+  --k-goal-ink: #0b3a1d;
+  --k-travel: #fbe9d0;
+  --k-travel-ink: #5a3b06;
+  --k-event: #ece4fb;
+  --k-event-ink: #3b1f7a;
+  --k-free: #e8e8ec;
+  --k-free-ink: #3a3d4a;
+
+  /* Shape and depth */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(22, 27, 52, 0.06);
+  --shadow-md: 0 1px 2px rgba(22, 27, 52, 0.05), 0 6px 18px rgba(22, 27, 52, 0.07);
+  --shadow-lg: 0 18px 44px rgba(22, 27, 52, 0.18), 0 2px 6px rgba(22, 27, 52, 0.06);
+
+  /* Layout. --tabbar-h is the phone bottom tab bar's height including the
+     home-indicator inset (0 on wider screens). The bar is in normal flow, so
+     tab content never needs it unless it uses position: fixed. */
+  --header-h: 56px;
+  --tabbar-h: 0px;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app-bg: #14161e;
+    --app-surface: #1c1f2a;
+    --app-surface-2: #242838;
+    --app-raised: #2e3346;
+    --app-free-fill: rgba(226, 180, 90, 0.08);
+    --app-free-ink: rgba(226, 180, 90, 0.7);
+    --app-work-fill: rgba(140, 152, 240, 0.08);
+    --app-work-ink: rgba(140, 152, 240, 0.6);
+    --app-sleep-fill: rgba(160, 165, 190, 0.07);
+    --app-sleep-ink: rgba(160, 165, 190, 0.55);
+    --app-border: #2e3344;
+    --app-grid: #262a38;
+    --app-text: #e8eaf2;
+    --app-text-muted: #a3a8ba;
+    --app-text-faint: #7c8197;
+
+    --app-accent: #8d9cf0;
+    --app-accent-hover: #a3b0f4;
+    --app-accent-ink: #0f1330;
+    --app-accent-container: #283058;
+    --app-accent-on-container: #d6dcff;
+
+    --app-preview: #b29af0;
+    --app-preview-container: #2c1f4a;
+    --app-preview-ink: #e2d6fb;
+    --app-preview-fill: rgba(178, 154, 240, 0.1);
+
+    --app-ok: #7fd69a;
+    --app-ok-container: #1c3d28;
+    --app-ok-ink: #c4edd1;
+
+    --app-error: #f2a49e;
+    --app-error-bg: #3d1d1a;
+    --app-error-border: #6b2f2a;
+
+    --app-switch-off: #454b61;
+    --app-switch-knob: #eef0f7;
+
+    --app-now: #ff6b70;
+    --app-today-tint: rgba(141, 156, 240, 0.06);
+
+    --ev-fixed-fill: #262c4d;
+    --ev-fixed-ink: #d7ddff;
+    --ev-plan: #7fd69a;
+    --ev-plan-fill: #1b3a27;
+    --ev-plan-ink: #cdeed8;
+
+    --k-task: #252c4b;
+    --k-task-ink: #c3ccff;
+    --k-goal: #1c3d28;
+    --k-goal-ink: #b8ecc8;
+    --k-travel: #3e2b10;
+    --k-travel-ink: #f0c98a;
+    --k-event: #2c1f4a;
+    --k-event-ink: #d3c2f5;
+    --k-free: #2a2d38;
+    --k-free-ink: #c5c8d2;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.28);
+    --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* =============================================================================
+   Base
+   ========================================================================== */
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+/* The calendar uses horizontal swipes itself; don't let them turn into the
+   browser's back/forward gesture (Chrome) or rubber-band the whole page. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Buttons shared by the shell (the review tabs style their own). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-pill);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--app-surface-2);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.btn:disabled {
+  color: var(--app-text-faint);
+  cursor: default;
+}
+
+.icon-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--app-surface-2);
+  color: var(--app-text);
+}
+
+.icon-btn:disabled {
+  cursor: default;
+}
+
+/* Segmented control (calendar views). The header tab bar uses the same look. */
+.segmented {
+  display: inline-flex;
+  flex: none;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--app-surface-2);
+}
+
+.segmented button {
+  height: 28px;
+  padding: 0 13px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.segmented button:hover:not(.is-active) {
+  color: var(--app-text);
+}
+
+.segmented button.is-active {
+  background: var(--app-raised);
+  color: var(--app-text);
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 0.5px var(--app-border);
+}
+
+/* =============================================================================
+   Shell: header, tab bars, tab panes
+   ========================================================================== */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-header {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  min-height: var(--header-h);
+  padding: env(safe-area-inset-top) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.brand {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-text);
+  text-decoration: none;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #6271e3, #4352c4);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(35, 44, 116, 0.25);
+}
+
+/* The section title: visible on phones (large title), for screen readers only
+   on wider screens, where the header's tab bar shows the section. */
+.page-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.header-end {
+  justify-self: end;
+}
+
+/* Header tab bar (>= 641px): a segmented control with count badges. */
+.tabbar-top {
+  display: inline-flex;
+  padding: 4px;
+  gap: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--app-surface-2);
+}
+
+.tabbar-top .tabbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  color: var(--app-text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.tabbar-top .tabbar-item:hover {
+  color: var(--app-text);
+}
+
+.tabbar-top .tabbar-item.is-active {
+  background: var(--app-raised);
+  color: var(--app-text);
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 0.5px var(--app-border);
+}
+
+.tabbar-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--app-accent);
+  color: var(--app-accent-ink);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phone tab bar: hidden until the phone breakpoint below. */
+.tabbar-bottom {
+  display: none;
+}
+
+.app-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.tab-pane {
+  position: absolute;
+  inset: 0;
+}
+
+.tab-pane[hidden] {
+  display: none;
+}
+
+/* The review tabs scroll inside their pane (sticky bars stick to its bottom). */
+.pane-review {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pane-calendar {
+  display: flex;
+  flex-direction: column;
+}
+
+/* =============================================================================
+   Calendar area: nav bar, preview banner, panes
+   ========================================================================== */
+
+.calendar-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 14px max(20px, env(safe-area-inset-right)) 20px max(20px, env(safe-area-inset-left));
+}
+
+.calendar-nav {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cnav-today {
+  order: 1;
+  margin-right: 4px;
+}
+
+.cnav-prev {
+  order: 2;
+}
+
+.cnav-next {
+  order: 3;
+}
+
+.cnav-date {
+  order: 4;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-left: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 1.1875rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cnav-date:hover {
+  background: var(--app-surface-2);
+}
+
+.cnav-date svg {
+  flex: none;
+  color: var(--app-text-faint);
+}
+
+.cnav-date-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The native date input sits invisibly on top of the label: tapping the date
+   opens the picker on phones and desktops. */
+.cnav-date input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.cnav-break {
+  display: none;
+}
+
+.preview-toggle {
+  order: 5;
+  margin-left: auto;
+}
+
+.cnav-views {
+  order: 6;
+}
+
+.cnav-sync {
+  order: 7;
+}
+
+.cnav-sync.is-spinning svg {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* "Preview plan" toggle: a plain pill; on = a solid preview-coloured outline. */
+.preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-pill);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.preview-toggle:hover:not(:disabled) {
+  border-color: var(--app-preview);
+}
+
+.preview-toggle:disabled {
+  color: var(--app-text-faint);
+  cursor: default;
+}
+
+.preview-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--app-surface-2);
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-toggle.is-on {
+  border-style: solid;
+  border-color: var(--app-preview);
+  background: var(--app-preview-fill);
+  color: var(--app-preview-ink);
+}
+
+.preview-toggle.is-on .preview-count {
+  background: var(--app-preview);
+  color: #fff;
+}
+
+.preview-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px dashed var(--app-preview);
+  border-radius: var(--radius-md);
+  background: var(--app-preview-fill);
+  color: var(--app-preview-ink);
+  font-size: 0.8125rem;
+}
+
+.preview-banner > span {
+  min-width: 0;
+}
+
+.preview-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border: 1.5px dashed var(--app-preview);
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.preview-banner a {
+  flex: none;
+  color: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.preview-banner a::after {
+  content: ' ›';
+}
+
+.preview-banner a:hover {
+  text-decoration: underline;
+}
+
+.preview-banner-short {
+  display: none;
+}
+
+.preview-banner.is-error {
+  border-style: solid;
+  border-color: var(--app-error-border);
+  background: var(--app-error-bg);
+  color: var(--app-error);
+}
+
+/* Offline strip under the header (OfflineBanner.jsx): saved data is on show. */
+.offline-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 7px max(16px, env(safe-area-inset-right)) 7px max(16px, env(safe-area-inset-left));
+  background: var(--app-surface-2);
+  border-bottom: 1px solid var(--app-border);
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.offline-banner > span {
+  min-width: 0;
+}
+
+.offline-banner strong {
+  color: var(--app-text);
+  font-weight: 650;
+}
+
+.offline-retry {
+  flex: none;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.offline-retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error-card {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--app-error-border);
+  border-radius: var(--radius-md);
+  background: var(--app-error-bg);
+  color: var(--app-error);
+  font-size: 0.8125rem;
+}
+
+.error-card code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95em;
+}
+
+.calendar-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+  /* Vertical scrolling and pinch-zoom stay native; horizontal swipes are ours. */
+  touch-action: pan-y pinch-zoom;
+}
+
+.calendar-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-pane[hidden] {
+  display: none;
+}
+
+/* The Preact adapter's own wrapper around each Schedule-X instance. */
+.calendar-pane > .sx-preact-calendar-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+.pane-label {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 6px 8px;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pane-label span {
+  color: var(--app-text-faint);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A short slide in the direction of travel when the date changes. */
+@keyframes cal-slide-next {
+  from {
+    opacity: 0.4;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes cal-slide-prev {
+  from {
+    opacity: 0.4;
+    transform: translateX(-16px);
+  }
+}
+
+.calendar-panes.slide-next .sx__view-container > * {
+  animation: cal-slide-next 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.calendar-panes.slide-prev .sx__view-container > * {
+  animation: cal-slide-prev 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-panes .sx__view-container > *,
+  .cnav-sync.is-spinning svg {
+    animation: none !important;
+  }
+}
+
+/* =============================================================================
+   Schedule-X theme. Its .is-dark class redefines --sx-* on the wrapper, so the
+   mapping sits on the wrapper too, at higher specificity, for both themes.
+   ========================================================================== */
+
+.calendar-area .sx__calendar-wrapper,
+.calendar-area .sx__calendar-wrapper.is-dark {
+  --sx-color-primary: var(--app-accent);
+  --sx-color-on-primary: var(--app-accent-ink);
+  --sx-color-primary-container: var(--ev-fixed-fill);
+  --sx-color-on-primary-container: var(--ev-fixed-ink);
+  --sx-color-surface: var(--app-surface);
+  --sx-color-surface-dim: var(--app-surface-2);
+  --sx-color-surface-bright: var(--app-surface);
+  --sx-color-on-surface: var(--app-text);
+  --sx-color-surface-container: var(--app-surface-2);
+  --sx-color-surface-container-low: var(--app-surface-2);
+  --sx-color-surface-container-high: var(--app-raised);
+  --sx-color-background: var(--app-surface);
+  --sx-color-on-background: var(--app-text);
+  --sx-color-outline: var(--app-text-faint);
+  --sx-color-outline-variant: var(--app-grid);
+  --sx-color-neutral: var(--app-text-faint);
+  --sx-color-neutral-variant: var(--app-grid);
+  --sx-internal-color-text: var(--app-text);
+  --sx-internal-color-gray-ripple-background: var(--app-surface-2);
+  --sx-internal-color-light-gray: var(--app-surface-2);
+  --sx-rounding-extra-small: var(--radius-xs);
+  --sx-rounding-small: var(--radius-sm);
+  --sx-rounding-extra-large: var(--radius-lg);
+  --sx-border: 1px solid var(--app-grid);
+  --sx-box-shadow-level3: var(--shadow-md);
+  --sx-calendar-week-grid-padding-left: 52px;
+}
+
+/* Our CalendarNav replaces Schedule-X's header (it would appear once per pane). */
+.calendar-area .sx__calendar-header {
+  display: none;
+}
+
+/* The calendar as a soft card. */
+.calendar-area .sx__calendar {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Some all-day bars overhang their column; never scroll the grid sideways. */
+.calendar-area .sx__view-container {
+  overflow-x: hidden;
+}
+
+/* --- Time grid (day and week) --------------------------------------------- */
+
+.calendar-area .sx__week-header {
+  background: var(--app-surface);
+}
+
+.calendar-area .sx__week-header-border {
+  border-left: none;
+}
+
+.calendar-area .sx__week-grid__date {
+  padding: 9px 0 7px;
+  gap: 3px;
+}
+
+.calendar-area .sx__week-grid__day-name {
+  color: var(--app-text-faint);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.calendar-area .sx__week-grid__date-number {
+  width: 30px;
+  height: 30px;
+  color: var(--app-text);
+  font-size: 1.0625rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-area .sx__week-grid__date--is-today .sx__week-grid__day-name {
+  color: var(--app-accent);
+}
+
+.calendar-area .sx__week-grid__date--is-today .sx__week-grid__date-number {
+  background: var(--app-accent);
+  color: var(--app-accent-ink);
+}
+
+/* Day views: the nav bar already shows the date; keep only the all-day row. */
+.calendar-area.view-day .sx__week-grid__date-axis {
+  display: none;
+}
+
+/* Hour lines span the grid only; labels sit right-aligned in the gutter. */
+.calendar-area .sx__week-grid__time-axis {
+  width: calc(100% - var(--sx-calendar-week-grid-padding-left));
+}
+
+.calendar-area .sx__week-grid__hour-text {
+  left: auto;
+  right: calc(100% + 8px);
+  top: -0.65em;
+  color: var(--app-text-faint);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Now": a slim line with a dot, plus a faint line across the other days. */
+.calendar-area .sx__current-time-indicator {
+  height: 2px;
+  background-color: var(--app-now);
+  z-index: 2;
+}
+
+.calendar-area .sx__current-time-indicator::before {
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--app-now);
+}
+
+.calendar-area .sx__current-time-indicator-full-week {
+  height: 1px;
+  background-color: var(--app-now);
+  opacity: 0.35;
+}
+
+/* Event blocks: soft fill, 3px colour bar, 12px text. Schedule-X sets colours
+   and borders inline, hence the !important on the few properties we change. */
+.calendar-area .sx__time-grid-event {
+  padding: 3px 6px 3px 7px;
+  border-radius: var(--radius-xs);
+  border-inline-start-width: 3px !important;
+  border-top-color: var(--app-surface) !important;
+  border-bottom-color: var(--app-surface) !important;
+  border-inline-end-color: var(--app-surface) !important;
+  font-size: 0.75rem;
+  line-height: 15px;
+  /* 15-minute (and zero-length) blocks stay tall enough for one line. */
+  min-height: 19px;
+  transition: box-shadow 0.15s ease;
+}
+
+.calendar-area .sx__time-grid-event:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.calendar-area .sx__time-grid-event-title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-area .sx__time-grid-event-time,
+.calendar-area .sx__time-grid-event-location,
+.calendar-area .sx__time-grid-event-people {
+  display: block;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  opacity: 0.8;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-area .sx__time-grid-event .sx__event-icon {
+  display: none;
+}
+
+.calendar-area .sx__title-and-time-compact {
+  gap: 6px;
+}
+
+.calendar-area .sx__title-and-time-compact .sx__time-grid-event-time {
+  display: block;
+}
+
+/* Short blocks put title and start time on one line; in narrow columns the
+   title wins and the time (still in the details popover) is dropped. Blocks
+   too short for a third line drop location/people instead of half-showing
+   them. (Blocks have explicit inline heights, so size containment is safe.) */
+.calendar-area .sx__time-grid-event {
+  container-type: size;
+}
+
+@container (max-width: 140px) {
+  .sx__title-and-time-compact .sx__time-grid-event-time {
+    display: none !important;
+  }
+}
+
+@container (max-height: 50px) {
+  .sx__time-grid-event-location,
+  .sx__time-grid-event-people {
+    display: none !important;
+  }
+}
+
+/* Stack cards: a run of short blocks too tight to draw one by one
+   (gridLayout.js). The title holds one member per line. */
+.calendar-area .sx__time-grid-event.is-stack {
+  padding: 2px 6px 2px 7px;
+  cursor: pointer;
+}
+
+.calendar-area .is-stack .sx__time-grid-event-title {
+  font-size: 0.6875rem;
+  line-height: 12px; /* STACK_LINE_PX in gridLayout.js */
+  white-space: pre;
+}
+
+.calendar-area .is-stack .sx__time-grid-event-time,
+.calendar-area .is-stack .sx__time-grid-event-location,
+.calendar-area .is-stack .sx__time-grid-event-people,
+.calendar-area .is-squeezed .sx__time-grid-event-time {
+  display: none !important;
+}
+
+/* A short block right before one it cannot stack with: its true height, so
+   it never covers the next block. */
+.calendar-area .sx__time-grid-event.is-squeezed {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 0.625rem;
+  line-height: 1;
+}
+
+/* Overlaps: the longest block keeps the full width, the others sit side by
+   side over its right side (gridLayout.js nest(); Schedule-X's inline
+   left/width/z-index are overridden). */
+.calendar-area .sx__time-grid-event.ov-base {
+  inset-inline-start: 0 !important;
+  width: 100% !important;
+  z-index: 0 !important;
+}
+
+.calendar-area .sx__time-grid-event.ov-nest {
+  --ov-indent: min(24%, 56px);
+  inset-inline-start: calc(var(--ov-indent) + (100% - var(--ov-indent)) * var(--ov-c, 0) / var(--ov-n, 1)) !important;
+  width: calc((100% - var(--ov-indent)) / var(--ov-n, 1)) !important;
+  z-index: 2 !important;
+  box-shadow: 0 0 0 1.5px var(--app-surface), var(--shadow-sm);
+}
+
+.calendar-area .ov-c-1 { --ov-c: 1; }
+.calendar-area .ov-c-2 { --ov-c: 2; }
+.calendar-area .ov-c-3 { --ov-c: 3; }
+.calendar-area .ov-n-2 { --ov-n: 2; }
+.calendar-area .ov-n-3 { --ov-n: 3; }
+.calendar-area .ov-n-4 { --ov-n: 4; }
+
+/* All-day row. */
+.calendar-area .sx__date-grid-cell {
+  height: 22px;
+}
+
+.calendar-area .sx__date-grid-event {
+  border-radius: var(--radius-xs);
+  border-inline-start-width: 3px !important;
+  font-size: 0.75rem;
+}
+
+/* --- Month grid (wider screens) ------------------------------------------- */
+
+.calendar-area .sx__month-grid-day {
+  padding: 6px 0 4px;
+  transition: background-color 0.15s ease;
+}
+
+.calendar-area .sx__month-grid-day__header {
+  margin-bottom: 2px;
+}
+
+.calendar-area .sx__month-grid-day__header-day-name {
+  margin-bottom: 3px;
+  color: var(--app-text-faint);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.calendar-area .sx__month-grid-day__header-date {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 2px;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-area .sx__month-grid-day.is-leading-or-trailing .sx__month-grid-day__header-date {
+  color: var(--app-text-faint);
+}
+
+.calendar-area .sx__month-grid-day__header-date.sx__is-today {
+  background: var(--app-accent);
+  color: var(--app-accent-ink);
+}
+
+.calendar-area .sx__month-grid-day__events {
+  grid-gap: 3px;
+}
+
+.calendar-area .sx__month-grid-event {
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  border-inline-start-width: 3px !important;
+  font-size: 0.75rem;
+}
+
+.calendar-area .sx__month-grid-event-time {
+  margin-right: 0;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-area .sx__month-grid-event-title {
+  overflow: hidden;
+  font-weight: 550;
+  text-overflow: ellipsis;
+}
+
+.calendar-area .sx__month-grid-day__events-more {
+  margin: 2px 0 0;
+  padding: 1px 8px;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+/* --- Month agenda (phones and narrow windows) ------------------------------ */
+
+.calendar-area .sx__month-agenda-day-names {
+  color: var(--app-text-faint);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.calendar-area .sx__month-agenda-day {
+  height: 3.1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-area .sx__month-agenda-day.is-leading-or-trailing {
+  color: var(--app-text-faint);
+}
+
+.calendar-area .sx__month-agenda-day--active {
+  box-shadow: none;
+  background: var(--app-accent-container);
+  color: var(--app-accent-on-container);
+}
+
+.calendar-area .sx__month-agenda-day__event-icon {
+  filter: none;
+}
+
+.calendar-area .sx__month-agenda-events {
+  padding: 4px 10px 10px;
+  border-top: 1px solid var(--app-grid);
+}
+
+.calendar-area .sx__month-agenda-event {
+  margin-bottom: 6px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border-inline-start-width: 3px !important;
+  font-size: 0.875rem;
+}
+
+.calendar-area .sx__month-agenda-event:first-child {
+  margin-top: 8px;
+}
+
+.calendar-area .sx__month-agenda-event__time {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+
+.calendar-area .sx__month-agenda-events__empty {
+  color: var(--app-text-faint);
+  font-size: 0.875rem;
+}
+
+/* --- Event details popover ------------------------------------------------- */
+
+.calendar-area .sx__event-modal-default {
+  padding: 18px 20px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-raised);
+  box-shadow: var(--shadow-lg);
+  max-height: min(60vh, 360px);
+  overflow-y: auto;
+  font-size: 0.875rem;
+}
+
+.calendar-area .sx__event-modal__title {
+  color: var(--app-text);
+  font-size: 1.0625rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.calendar-area .sx__event-modal .sx__has-icon:not(.sx__event-modal__title) {
+  margin-top: 8px;
+  color: var(--app-text-muted);
+}
+
+/* The colour swatch uses the event's (light) fill; a hairline keeps it visible. */
+.calendar-area .sx__event-modal__color-icon {
+  box-shadow: inset 0 0 0 1px var(--app-border);
+}
+
+.calendar-area .sx__event-modal__description {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Our details sheet (EventDetails.jsx replaces the plugin's default content, so
+   the chrome is ours too). The rv- tokens let it reuse the Plan tab's time editor. */
+.calendar-area .ev-sheet {
+  --rv-line: var(--app-border);
+  --rv-ink: var(--app-text);
+  --rv-muted: var(--app-text-muted);
+  --rv-surface: var(--app-surface);
+  --rv-accent: var(--app-accent);
+  --rv-danger: var(--app-error);
+  --rv-r-sm: var(--radius-sm);
+  --rv-r-md: var(--radius-md);
+  --sheet-tone: var(--ev-fixed-ink);
+  --sheet-tone-fill: var(--ev-fixed-fill);
+
+  box-sizing: border-box;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-raised);
+  box-shadow: var(--shadow-lg);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  color: var(--app-text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.calendar-area .ev-sheet.tone-plan {
+  --sheet-tone: var(--ev-plan);
+  --sheet-tone-fill: var(--ev-plan-fill);
+}
+
+.calendar-area .ev-sheet.tone-proposed {
+  --sheet-tone: var(--app-preview);
+  --sheet-tone-fill: var(--app-preview-container);
+}
+
+.calendar-area .ev-sheet *,
+.calendar-area .ev-sheet *::before,
+.calendar-area .ev-sheet *::after {
+  box-sizing: border-box;
+}
+
+/* Grab bar: only on the phone bottom sheet. */
+.calendar-area .ev-sheet-handle {
+  display: none;
+  width: 36px;
+  height: 4px;
+  margin: -6px auto 10px;
+  border-radius: var(--radius-pill);
+  background: var(--app-border);
+}
+
+.calendar-area .ev-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.calendar-area .ev-sheet-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-area .ev-sheet-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sheet-tone);
+}
+
+.calendar-area .ev-sheet.tone-proposed .ev-sheet-dot {
+  background: var(--sheet-tone-fill);
+  box-shadow: inset 0 0 0 1.5px var(--sheet-tone);
+}
+
+.calendar-area .ev-sheet-close {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: -6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-surface-2);
+  color: var(--app-text-muted);
+  cursor: pointer;
+}
+
+.calendar-area .ev-sheet-close:hover {
+  color: var(--app-text);
+}
+
+/* Stack sheet: the blocks of a stack card, each opening its own details. */
+.calendar-area .ev-stack-date {
+  margin-top: 2px;
+  color: var(--app-text-muted);
+}
+
+.calendar-area .ev-stack-list {
+  margin: 12px -6px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calendar-area .ev-stack-item {
+  --sheet-tone: var(--ev-fixed-ink);
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--app-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.calendar-area .ev-stack-item.tone-plan {
+  --sheet-tone: var(--ev-plan);
+}
+
+.calendar-area .ev-stack-item:hover {
+  background: var(--app-surface-2);
+}
+
+.calendar-area .ev-stack-time {
+  color: var(--app-text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calendar-area .ev-stack-title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-area .ev-stack-item .ev-sheet-icon {
+  color: var(--app-text-faint);
+}
+
+.calendar-area .ev-sheet-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -6px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--app-accent);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-area .ev-sheet-title {
+  margin: 6px 0 0;
+  color: var(--app-text);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.calendar-area .ev-sheet-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.calendar-area .ev-sheet-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--app-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.calendar-area .ev-sheet-row > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.calendar-area .ev-sheet-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--app-text-faint);
+}
+
+.calendar-area .ev-sheet-strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.calendar-area .ev-sheet-hint {
+  margin-top: 2px;
+  color: var(--app-text-faint);
+  font-size: 0.8rem;
+}
+
+.calendar-area .ev-sheet-desc {
+  white-space: pre-line;
+}
+
+.calendar-area .ev-sheet-actions {
+  display: flex;
+  justify-content: space-between; /* Delete at the left, Move at the right */
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.calendar-area .ev-sheet-move {
+  min-height: 40px;
+  padding: 0 22px;
+}
+
+.calendar-area .ev-sheet-delete,
+.calendar-area .ev-sheet .rv-editor-delete {
+  margin-right: auto; /* opposite side from Save / Move */
+  padding-left: 4px;
+}
+
+.calendar-area .ev-sheet-editor {
+  margin-top: 14px;
+  padding: 12px 12px 10px;
+  border-radius: var(--radius-md);
+  background: var(--app-surface-2);
+}
+
+.calendar-area .ev-sheet-editor-title {
+  margin: 0 0 8px 2px;
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.calendar-area .ev-sheet .rv-editor {
+  margin: 0;
+  padding: 0;
+  background: none;
+}
+
+.calendar-area .ev-sheet-error {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--app-error-border);
+  border-radius: var(--radius-sm);
+  background: var(--app-error-bg);
+  color: var(--app-error);
+  font-size: 0.85rem;
+}
+
+/* --- Free time: derived gaps drawn behind the grid (freeTimeBackground in app.jsx). */
+
+.calendar-area .sx__time-grid-background-event {
+  /* Schedule-X sets position, top, height and width inline. Free time is the
+     default look; the Work band overrides the --band-* properties inline. */
+  border-radius: var(--radius-xs);
+  background: var(--band-fill, var(--app-free-fill));
+  background-image: var(--band-image, none);
+  pointer-events: none;
+}
+
+.calendar-area .sx__time-grid-background-event::before {
+  content: attr(title);
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  color: var(--band-ink, var(--app-free-ink));
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* --- An approved block that a synced event now overlaps (triggers.py): the
+   backend marks it has-conflict; a move is waiting in the Plan tab. */
+
+.calendar-area .sx__event.has-conflict {
+  outline: 2px solid var(--app-error) !important;
+  outline-offset: -2px;
+}
+
+.calendar-area .sx__time-grid-event.has-conflict::after,
+.calendar-area .sx__month-grid-event.has-conflict::after {
+  content: '!';
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  color: var(--app-error);
+  font-weight: 800;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.calendar-area .ev-sheet-conflict {
+  margin-top: 6px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--app-error-fill, rgba(179, 38, 30, 0.1));
+  color: var(--app-error);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* --- The slot sheet: what could fill a tapped Free band (SlotSheet.jsx). Same
+   surface as the event details sheet: a card at the bottom right on wide
+   screens, a bottom sheet on phones. */
+
+.calendar-area .slot-sheet {
+  --rv-line: var(--app-border);
+  --rv-ink: var(--app-text);
+  --rv-muted: var(--app-text-muted);
+  --rv-surface: var(--app-surface);
+  --rv-accent: var(--app-accent);
+  --rv-danger: var(--app-error);
+  --rv-r-sm: var(--radius-sm);
+  --rv-r-md: var(--radius-md);
+
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-raised);
+  box-shadow: var(--shadow-lg);
+  color: var(--app-text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.calendar-area .slot-sheet *,
+.calendar-area .slot-sheet *::before,
+.calendar-area .slot-sheet *::after {
+  box-sizing: border-box;
+}
+
+.calendar-area .slot-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calendar-area .slot-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 10px 0 2px;
+}
+
+.calendar-area .slot-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-area .slot-filter-label {
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.calendar-area .slot-filter-seg button {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+}
+
+.calendar-area .slot-sheet-kind {
+  color: var(--app-free-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.calendar-area .slot-sheet-title {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.calendar-area .slot-sheet-body {
+  min-height: 0;
+  margin-top: 6px;
+  overflow-y: auto;
+}
+
+.calendar-area .slot-sheet .rv-section-title {
+  margin: 12px 2px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.calendar-area .slot-sheet-empty {
+  margin: 12px 0 4px;
+  color: var(--app-text-muted);
+}
+
+.calendar-area .slot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.calendar-area .slot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--app-border);
+}
+
+.calendar-area .slot-row:first-child {
+  border-top: 0;
+}
+
+.calendar-area .slot-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.calendar-area .slot-row-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-area .slot-row-title {
+  font-weight: 650;
+}
+
+.calendar-area .slot-row-title a {
+  color: inherit;
+}
+
+.calendar-area .slot-row-meta {
+  margin-top: 1px;
+  color: var(--app-text-muted);
+  font-size: 0.82rem;
+}
+
+.calendar-area .slot-tag {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 18px;
+}
+
+.calendar-area .slot-tag-rec {
+  background: var(--ev-plan-fill);
+  color: var(--ev-plan-ink);
+}
+
+.calendar-area .slot-tag-key {
+  background: var(--k-event, #ece4fb);
+  color: var(--k-event-ink, #3b1f7a);
+}
+
+.calendar-area .slot-add {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.calendar-area .slot-sheet .rv-skeletons {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.calendar-area .slot-sheet .rv-skeleton {
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--app-border);
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  .calendar-area .slot-sheet {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 72vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .calendar-area .slot-sheet .ev-sheet-handle {
+    display: block;
+  }
+}
+
+/* --- Proposed events (preview): dashed outline, light fill, no colour bar. */
+
+.calendar-area .sx__event.is-proposed {
+  border: 1.5px dashed var(--app-preview) !important;
+  background-color: var(--app-preview-fill) !important;
+  color: var(--app-preview-ink) !important;
+}
+
+.calendar-area .sx__time-grid-event.is-proposed {
+  padding: 2px 5px;
+}
+
+.calendar-area .sx__month-agenda-event.is-proposed {
+  padding: 8px 11px;
+}
+
+/* =============================================================================
+   Phones (<= 640px): bottom tab bar, two-row calendar nav, one-column day view
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  :root {
+    --tabbar-h: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  .tabbar-top {
+    display: none;
+  }
+
+  /* The calendar's nav bar is its top bar; other tabs get a large title. */
+  .app-shell.tab-calendar .app-header {
+    display: none;
+  }
+
+  /* The Events tab draws its own large title, with Reload beside it. */
+  .app-shell.tab-events .app-header {
+    display: none;
+  }
+
+  .app-header {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 0;
+    border-bottom: none;
+    background: var(--app-bg);
+  }
+
+  .brand {
+    display: none;
+  }
+
+  .page-title {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    margin: 0;
+    font-size: 1.625rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+
+  .tabbar-bottom {
+    display: flex;
+    flex: none;
+    min-height: var(--tabbar-h);
+    padding: 4px max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
+    border-top: 1px solid var(--app-border);
+    background: var(--app-surface);
+  }
+
+  .tabbar-bottom .tabbar-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 52px;
+    color: var(--app-text-muted);
+    text-decoration: none;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+
+  .tabbar-bottom .tabbar-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 30px;
+    border-radius: 15px;
+    transition: background-color 0.2s ease;
+  }
+
+  .tabbar-bottom .tabbar-item.is-active {
+    color: var(--app-accent-on-container);
+  }
+
+  .tabbar-bottom .tabbar-item.is-active .tabbar-icon {
+    background: var(--app-accent-container);
+  }
+
+  .tabbar-bottom .tabbar-item:active .tabbar-icon {
+    background: var(--app-surface-2);
+  }
+
+  .tabbar-badge {
+    position: absolute;
+    top: -3px;
+    left: calc(50% + 6px);
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border: 2px solid var(--app-surface);
+    border-radius: 10px;
+    background: var(--app-accent);
+    color: var(--app-accent-ink);
+    font-size: 0.625rem;
+    font-weight: 750;
+    line-height: 15px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .calendar-area {
+    gap: 8px;
+    padding: calc(6px + env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 10px
+      max(10px, env(safe-area-inset-left));
+  }
+
+  /* Two rows: [<] date [>] ... [Today][sync] / [Day|Week|Month] ... [Preview]. */
+  .calendar-nav {
+    gap: 6px 2px;
+  }
+
+  .cnav-prev {
+    order: 1;
+  }
+
+  .cnav-date {
+    order: 2;
+    margin-left: 0;
+    padding: 4px 4px;
+    font-size: 1.125rem;
+  }
+
+  .cnav-next {
+    order: 3;
+  }
+
+  .cnav-today {
+    order: 4;
+    margin: 0 2px 0 auto;
+  }
+
+  .cnav-sync {
+    order: 5;
+  }
+
+  .cnav-break {
+    display: block;
+    order: 6;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  .cnav-views {
+    order: 7;
+  }
+
+  .preview-toggle {
+    order: 8;
+    margin-left: auto;
+  }
+
+  .preview-label-long {
+    display: none;
+  }
+
+  .preview-banner {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .preview-banner-long {
+    display: none;
+  }
+
+  .preview-banner-short {
+    display: inline;
+  }
+
+  /* Comfortable touch targets (44px hit area around 36-40px visuals). */
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .btn,
+  .preview-toggle {
+    height: 36px;
+  }
+
+  .segmented button {
+    height: 30px;
+    padding: 0 14px;
+  }
+
+  .icon-btn::after,
+  .btn::after,
+  .preview-toggle::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+
+  .btn,
+  .preview-toggle {
+    position: relative;
+  }
+
+  .calendar-panes {
+    gap: 8px;
+  }
+
+  .calendar-area .sx__calendar {
+    border-radius: var(--radius-md);
+  }
+
+  .calendar-area .sx__calendar-wrapper,
+  .calendar-area .sx__calendar-wrapper.is-dark {
+    --sx-calendar-week-grid-padding-left: 40px;
+  }
+
+  .calendar-area .sx__week-grid__hour-text {
+    right: calc(100% + 5px);
+    font-size: 0.625rem;
+  }
+
+  .calendar-area .sx__week-grid__date {
+    padding: 7px 0 5px;
+  }
+
+  .calendar-area .sx__week-grid__date-number {
+    width: 26px;
+    height: 26px;
+    font-size: 0.9375rem;
+  }
+
+  .calendar-area .sx__week-grid__day-name {
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* Week view: seven narrow columns; titles only, tighter padding. */
+  .calendar-area.view-week .sx__time-grid-event {
+    padding: 2px 3px 2px 4px;
+    font-size: 0.6875rem;
+    line-height: 13px;
+  }
+
+  .calendar-area.view-week .sx__time-grid-event-title {
+    white-space: normal;
+    -webkit-hyphens: auto;
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+
+  .calendar-area.view-week .sx__time-grid-event-time,
+  .calendar-area.view-week .sx__time-grid-event-location,
+  .calendar-area.view-week .sx__time-grid-event-people,
+  .calendar-area.view-week .sx__title-and-time-compact .sx__time-grid-event-time {
+    display: none;
+  }
+
+  /* Event details as a bottom sheet instead of a popover beside the event. */
+  .calendar-area .sx__event-modal {
+    top: auto !important;
+    left: 10px !important;
+    right: 10px;
+    bottom: calc(var(--tabbar-h) + 10px);
+    width: auto;
+    max-width: none;
+  }
+
+  .calendar-area .sx__event-modal.is-open {
+    animation: sheet-up 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+
+  .calendar-area .sx__event-modal-default,
+  .calendar-area .ev-sheet {
+    max-height: 62vh;
+  }
+
+  .calendar-area .ev-sheet {
+    padding: 12px 18px calc(16px + env(safe-area-inset-bottom) / 2);
+    border-radius: 20px;
+  }
+
+  .calendar-area .ev-sheet-handle {
+    display: block;
+  }
+
+  .calendar-area .ev-sheet-move {
+    flex: 1;
+    min-height: 46px;
+  }
+}
+
+/* Very narrow phones (320px class): keep the nav bar on two rows. */
+@media (max-width: 350px) {
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .cnav-date {
+    font-size: 1rem;
+  }
+
+  .cnav-today {
+    padding: 0 10px;
+  }
+
+  .segmented button {
+    padding: 0 10px;
+  }
+
+  .preview-toggle {
+    padding: 0 10px;
+  }
+
+  .preview-toggle svg {
+    display: none;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* --- Drag to move / resize a planned block (dragMove.js). Only approved
+   optimizer blocks get `is-movable`. The ghost is a fixed element on <body>,
+   so Schedule-X re-rendering mid-drag never disturbs it. */
+
+.calendar-area .sx__time-grid-event.is-movable {
+  cursor: grab;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The resize grip: the bottom 7px (dragMove.js RESIZE_EDGE_PX). Mouse only. */
+@media (hover: hover) and (pointer: fine) {
+  .calendar-area .sx__time-grid-event.is-movable::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 7px;
+    cursor: ns-resize;
+  }
+}
+
+.calendar-area .sx__time-grid-event.is-drag-source {
+  opacity: 0.35;
+}
+
+html.is-dragging-event,
+html.is-dragging-event * {
+  cursor: grabbing !important;
+}
+
+html.is-resizing-event,
+html.is-resizing-event * {
+  cursor: ns-resize !important;
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 3px 6px 3px 7px;
+  border-inline-start: 3px solid var(--ghost-bar, var(--app-accent));
+  border-radius: var(--radius-xs);
+  background: var(--ghost-fill, var(--app-accent-container));
+  box-shadow: var(--shadow-lg);
+  color: var(--ghost-ink, var(--app-accent-on-container));
+  font-size: 0.75rem;
+  line-height: 15px;
+  pointer-events: none;
+  outline: 2px solid var(--app-accent);
+  outline-offset: 0;
+}
+
+.drag-ghost.is-saving {
+  opacity: 0.75;
+}
+
+.drag-ghost-title {
+  overflow: hidden;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.drag-ghost-time,
+.drag-ghost-day {
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drag-toast {
+  position: fixed;
+  z-index: 1001;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  max-width: min(92vw, 420px);
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--app-error-border);
+  border-radius: var(--radius-sm);
+  background: var(--app-error-bg);
+  box-shadow: var(--shadow-md);
+  color: var(--app-error);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 640px) {
+  .drag-toast {
+    bottom: calc(var(--tabbar-h, 56px) + 16px + env(safe-area-inset-bottom, 0px));
+  }
+}

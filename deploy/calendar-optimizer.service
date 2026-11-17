@@ -1,0 +1,28 @@
+# systemd unit for the calendar_optimizer backend (API + jobs + built calendar app).
+# Template: setup-pi.sh fills in @USER@, @HOME@ and @REPO@ and installs it as
+# /etc/systemd/system/calendar-optimizer.service. Edit this file, not the
+# installed copy, then re-run setup-pi.sh.
+
+[Unit]
+Description=calendar_optimizer (FastAPI + APScheduler, port 8000)
+Wants=network-online.target
+After=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@
+# ~/.local/bin holds the standalone `claude` CLI (LLM_BACKEND=cli). Secrets and
+# settings come from @REPO@/.env, which the backend loads itself.
+Environment=PATH=@HOME@/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+# One process on purpose: APScheduler runs inside it, so more workers would
+# run every job more than once.
+ExecStart=@REPO@/.venv/bin/python3 -m uvicorn --app-dir backend main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=10
+# Keeps a runaway (e.g. a stuck CLI call) from taking the whole Pi down.
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

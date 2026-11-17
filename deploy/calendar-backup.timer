@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily (08:00) calendar_optimizer data backup
+
+[Timer]
+# 08:00 local time (the Pi's clock is America/New_York), after the morning
+# jobs (scout fetch 06:00, optimizer 06:30, scout recommend 07:00) so their
+# results are in that day's backup.
+# Persistent: if the Pi was off at 08:00, run once when it is back.
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
