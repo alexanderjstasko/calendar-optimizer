@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>calendar-optimizer</title>
+<meta name="description" content="A self-hosted calendar that merges Google, Apple, Outlook and Partiful, and has Claude plan your Notion goals and tasks into your week. You approve every block.">
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+  :root {
+    --bg: #f7f7fb;
+    --surface: #ffffff;
+    --border: #e3e4ee;
+    --text: #1b1d2a;
+    --muted: #5b5f73;
+    --accent: #4f5fd1;
+    --accent-hover: #4351bd;
+    --accent-ink: #ffffff;
+    --accent-soft: #e8ebfc;
+    --accent-on-soft: #232c74;
+    --code-bg: #f0f1f7;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12131a;
+      --surface: #1b1d27;
+      --border: #2c2f3d;
+      --text: #e8e9f1;
+      --muted: #a0a3b8;
+      --accent: #8d9cf0;
+      --accent-hover: #a3b0f4;
+      --accent-ink: #12131a;
+      --accent-soft: #252a4d;
+      --accent-on-soft: #d3d9fb;
+      --code-bg: #232533;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-hover); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; color: var(--text); text-decoration: none; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  nav.links { display: flex; gap: 18px; font-size: 15px; }
+  nav.links a { color: var(--muted); text-decoration: none; white-space: nowrap; }
+  .brand { white-space: nowrap; }
+  nav.links a:hover { color: var(--text); }
+
+  .hero { padding: 48px 0 40px; }
+  .hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.02em; max-width: 18ch; }
+  .hero p.lead { font-size: 19px; color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; padding: 11px 20px; border-radius: 10px; font-weight: 600; text-decoration: none;
+    border: 1px solid var(--border); color: var(--text); background: var(--surface);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { background: var(--accent-hover); color: var(--accent-ink); }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+
+  section { padding: 36px 0; }
+  section h2 { font-size: 26px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  section p.sub { color: var(--muted); margin: 0 0 24px; max-width: 62ch; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  ol.flow { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; gap: 12px; }
+  ol.flow li {
+    counter-increment: step; position: relative; padding: 16px 16px 16px 60px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  ol.flow li::before {
+    content: counter(step); position: absolute; left: 16px; top: 15px;
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-on-soft); font-weight: 700; font-size: 14px;
+  }
+  ol.flow strong { display: block; }
+  ol.flow span { color: var(--muted); font-size: 15px; }
+
+  .note {
+    background: var(--accent-soft); color: var(--accent-on-soft); border-radius: var(--radius);
+    padding: 16px 18px; font-size: 15px;
+  }
+
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; margin: 0 0 16px;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  p code, li code { background: var(--code-bg); padding: 1px 5px; border-radius: 5px; font-size: 0.92em; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+
+  footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); margin-top: 24px; }
+
+  @media (max-width: 560px) {
+    nav.links { gap: 14px; font-size: 14px; }
+    nav.links .hide-sm { display: none; }
+    .hero { padding: 28px 0 24px; }
+    .hero p.lead { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="icon.png" alt="">calendar-optimizer</a>
+    <nav class="links">
+      <a class="hide-sm" href="#how">How it works</a>
+      <a href="#setup">Setup</a>
+      <a class="hide-sm" href="#notion">Notion</a>
+      <a href="https://github.com/alexanderjstasko/calendar-optimizer">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Your goals, planned into your week. You approve every block.</h1>
+    <p class="lead">A self-hosted calendar that merges Google, Apple, Outlook and Partiful into one view,
+      reads your goals and tasks from Notion, and has Claude propose a plan for the coming week.
+      Nothing lands on your calendar until you say yes.</p>
+    <div class="buttons">
+      <a class="btn primary" href="#setup">Set it up</a>
+      <a class="btn" href="https://github.com/alexanderjstasko/calendar-optimizer">View on GitHub</a>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>What it does</h2>
+    <p class="sub">One small server on your own machine, a calendar app on your phone.</p>
+    <div class="grid">
+      <div class="card"><h3>One calendar</h3><p>Google, Apple, Outlook and Partiful synced every few minutes into one Day, Week and Month view. Read-only: it never writes to your calendars.</p></div>
+      <div class="card"><h3>A weekly plan</h3><p>Every Sunday Claude places your tasks and recurring goals around your fixed events, sleep, work hours and a free-time floor you choose.</p></div>
+      <div class="card"><h3>You decide</h3><p>Each block is a proposal. Approve a whole series with one tap, move a single session, or reject it. The planner learns from your choices.</p></div>
+      <div class="card"><h3>Keeps up during the week</h3><p>A new Notion item or a meeting landing on a planned block produces a suggested change for you to review, never a silent edit.</p></div>
+      <div class="card"><h3>Events worth going to</h3><p>A scout reads event listings you choose and offers talks, shows and meetups that fit your free evenings and interests.</p></div>
+      <div class="card"><h3>Built for your phone</h3><p>Installs as a home-screen app, works offline from the last sync, and sends a review email when a new plan is ready.</p></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="sub">Notion holds what you want to do. Your calendars hold what is already fixed. The app puts them together.</p>
+    <ol class="flow">
+      <li><strong>Sync</strong><span>Calendar events and your Notion tree (Telos, goals, projects, routines, tasks) land in a local SQLite database.</span></li>
+      <li><strong>Plan</strong><span>Routines are placed by code; flexible goals and tasks go to Claude with your week, your hours and your stated preferences.</span></li>
+      <li><strong>Review</strong><span>Proposals appear in the Plan tab and in a preview on the calendar. Approve, move or reject them.</span></li>
+      <li><strong>Track</strong><span>After an approved block has passed, the app writes the time spent and the last session back to Notion.</span></li>
+    </ol>
+  </section>
+
+  <section id="setup">
+    <h2>Setup</h2>
+    <p class="sub">You need Python 3.11+, Node 20.19+, a Notion integration token, and Claude: an Anthropic API key or a Claude subscription with the <code>claude</code> CLI.</p>
+<pre><code>git clone https://github.com/alexanderjstasko/calendar-optimizer.git
+cd calendar-optimizer
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+cp .env.example .env      # fill in your tokens and calendar links
+(cd frontend &amp;&amp; npm install &amp;&amp; npm run build)
+.venv/bin/python3 -m uvicorn --app-dir backend main:app --port 8000</code></pre>
+    <p>Open <code>http://localhost:8000/</code>, then set your sleep, work hours and home address in the <strong>Hours</strong> tab.
+      The <a href="https://github.com/alexanderjstasko/calendar-optimizer#readme">README</a> covers every setting, Google Calendar sign-in and the approval emails.</p>
+    <div class="note">For everyday use, run it on an always-on machine such as a Raspberry Pi 4 and reach it from your phone over
+      <a href="https://tailscale.com">Tailscale</a>. The <a href="https://github.com/alexanderjstasko/calendar-optimizer/blob/main/deploy/README.md">Pi guide</a> sets up the service, updates and a daily backup.</div>
+  </section>
+
+  <section id="notion">
+    <h2>Notion setup</h2>
+    <p class="sub">One database holds everything, as a tree with sub-items turned on. Share it with your integration, or Notion's API answers 404.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Level</th><th>What it is</th><th>What the app does</th></tr></thead>
+        <tbody>
+          <tr><td>Telos, Goal, Project</td><td>Why you do things</td><td>Context for the planner; inherited priority. A Goal or Project with a Session Time can be planned itself.</td></tr>
+          <tr><td>Routine</td><td>Recurring habits (<code>Times/Week</code>, <code>Session Time (hr)</code>)</td><td>Placed every week: by code for <em>Routine</em> type, by Claude for <em>Flexible</em>, by the scout for <em>Event Interest</em>.</td></tr>
+          <tr><td>Task</td><td>One piece of work (<code>Time to Complete</code>, <code>Target Date</code>)</td><td>Split into blocks before the deadline; time spent is tracked.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:16px">The full property list is in the <a href="https://github.com/alexanderjstasko/calendar-optimizer#notion-databases">README</a>.</p>
+  </section>
+
+  <section id="privacy">
+    <h2>Your data stays yours</h2>
+    <p class="sub" style="margin:0">Everything runs on your machine: events, plans and tokens live in a local database and <code>.env</code>.
+      The only outside calls are to your calendar feeds, Notion, Claude and, if you turn them on, your mail server and the event sites you list.</p>
+  </section>
+
+  <footer>
+    MIT licensed · <a href="https://github.com/alexanderjstasko/calendar-optimizer">Source on GitHub</a> · Built with FastAPI, Preact, Schedule-X and Claude.
+  </footer>
+</div>
+</body>
+</html>
