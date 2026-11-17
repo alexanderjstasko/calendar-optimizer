@@ -29,3 +29,6 @@ frontend/dist/
 
 # Learned scheduling preferences: machine-written per host (backend/preferences.py)
 preferences.learned.md
+
+# Demo copy for the screenshots (tools/screenshots/serve_demo.sh)
+tools/screenshots/.demo/

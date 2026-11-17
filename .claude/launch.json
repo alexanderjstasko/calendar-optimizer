@@ -59,6 +59,12 @@
         "VITE_API_URL=\"${PI_API_URL:?set PI_API_URL, e.g. http://pi.example-tailnet.ts.net:8000}\" exec npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173"
       ],
       "port": 5173
+    },
+    {
+      "name": "demo-screenshots",
+      "runtimeExecutable": "tools/screenshots/serve_demo.sh",
+      "runtimeArgs": [],
+      "port": 8002
     }
   ]
 }

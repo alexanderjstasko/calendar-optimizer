@@ -34,7 +34,10 @@ person's own instance: hosts, accounts, history. This file covers the code only.
 - Prompt files at the root: `system_prompt.md`, `placement_prompt.md`, `scout_prompt.md`;
   `preferences.md` holds the person's stated preferences. Edit these, not code, to tune the model.
 - `deploy/`: Raspberry Pi setup, deploy and backup scripts (`deploy/README.md`).
-- `.claude/launch.json`: dev servers for Claude Code's preview tooling.
+- `.claude/launch.json`: dev servers for Claude Code's preview tooling (`demo-screenshots` serves
+  the made-up demo week on port 8002).
+- `docs/`: the GitHub Pages site. Its screenshots come only from `tools/screenshots/`
+  (`serve_demo.sh` + `capture.py`, fake data), never from a real instance.
 
 ## Running and testing
 

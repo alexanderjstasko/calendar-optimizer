@@ -122,12 +122,14 @@
   figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; }
   figcaption strong { color: var(--text); }
   .hero-shot { margin-top: 40px; }
-  .gallery { display: grid; gap: 28px; }
-  .gallery .pair { display: grid; gap: 28px; grid-template-columns: 1fr 1fr; }
-  .gallery .with-phone { display: grid; gap: 28px; grid-template-columns: 2.6fr 1fr; align-items: start; }
-  @media (max-width: 720px) {
-    .gallery .pair, .gallery .with-phone { grid-template-columns: 1fr; }
-    .gallery .with-phone .phone { max-width: 300px; }
+  .gallery { display: grid; gap: 24px; grid-template-columns: repeat(3, 1fr); }
+  .phones { display: grid; gap: 20px; grid-template-columns: repeat(4, 1fr); margin-top: 36px; }
+  .phones h3 { grid-column: 1 / -1; margin: 0; font-size: 19px; }
+  a.zoom { display: block; }
+  a.zoom:hover .shot { border-color: var(--accent); }
+  @media (max-width: 820px) {
+    .gallery { grid-template-columns: 1fr; }
+    .phones { grid-template-columns: 1fr 1fr; }
   }
 
   footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); margin-top: 24px; }
@@ -196,30 +198,44 @@
     <h2>A look around</h2>
     <p class="sub">Four tabs, the same on a laptop and on your phone. Every screenshot uses made-up demo data.</p>
     <div class="gallery">
-      <div class="with-phone">
-        <figure>
-          <img class="shot" src="screenshots/plan.png" width="1600" height="1000" loading="lazy"
-            alt="Plan tab: recurring blocks grouped into series with one toggle each, one-off blocks below, and an Approve plan button">
-          <figcaption><strong>Plan.</strong> Recurring blocks come as one series with one switch; open it to move or skip a single day.</figcaption>
-        </figure>
-        <figure class="phone">
-          <img class="shot" src="screenshots/phone-day.png" width="780" height="1688" loading="lazy"
-            alt="Phone day view with synced events, an approved writing block and dashed proposals">
-          <figcaption><strong>On your phone.</strong> Day view, with tabs at the bottom.</figcaption>
-        </figure>
-      </div>
-      <div class="pair">
-        <figure>
-          <img class="shot" src="screenshots/events.png" width="1600" height="1000" loading="lazy"
-            alt="Events tab: suggested talks, films and quizzes with venue, price and a toggle to add each">
-          <figcaption><strong>Events.</strong> Suggestions that fit your free evenings; switch one on to add it.</figcaption>
-        </figure>
-        <figure>
-          <img class="shot" src="screenshots/hours.png" width="1600" height="1000" loading="lazy"
-            alt="Hours tab: home, weekday sleep and work hours with office days, weekend sleep, and planning settings">
-          <figcaption><strong>Hours.</strong> Sleep, work, office days and how much free time to protect.</figcaption>
-        </figure>
-      </div>
+      <figure>
+        <a class="zoom" href="screenshots/plan.png"><img class="shot" src="screenshots/plan.png" width="1600" height="1000" loading="lazy"
+          alt="Plan tab: recurring blocks grouped into series with one toggle each, one-off blocks below, and an Approve plan button"></a>
+        <figcaption><strong>Plan.</strong> Recurring blocks come as one series with one switch; open it to move or skip a single day.</figcaption>
+      </figure>
+      <figure>
+        <a class="zoom" href="screenshots/events.png"><img class="shot" src="screenshots/events.png" width="1600" height="1000" loading="lazy"
+          alt="Events tab: suggested talks, films and quizzes with venue, price and a toggle to add each"></a>
+        <figcaption><strong>Events.</strong> Suggestions that fit your free evenings; switch one on to add it.</figcaption>
+      </figure>
+      <figure>
+        <a class="zoom" href="screenshots/hours.png"><img class="shot" src="screenshots/hours.png" width="1600" height="1000" loading="lazy"
+          alt="Hours tab: home, weekday sleep and work hours with office days, weekend sleep, and planning settings"></a>
+        <figcaption><strong>Hours.</strong> Sleep, work, office days and how much free time to protect.</figcaption>
+      </figure>
+    </div>
+    <div class="phones">
+      <h3>On your phone</h3>
+      <figure>
+        <a class="zoom" href="screenshots/phone-day.png"><img class="shot" src="screenshots/phone-day.png" width="780" height="1688" loading="lazy"
+          alt="Phone day view with synced events, an approved writing block and dashed proposals"></a>
+        <figcaption>Day view</figcaption>
+      </figure>
+      <figure>
+        <a class="zoom" href="screenshots/phone-plan.png"><img class="shot" src="screenshots/phone-plan.png" width="780" height="1688" loading="lazy"
+          alt="Phone Plan tab with series cards and the Approve plan bar"></a>
+        <figcaption>Plan</figcaption>
+      </figure>
+      <figure>
+        <a class="zoom" href="screenshots/phone-events.png"><img class="shot" src="screenshots/phone-events.png" width="780" height="1688" loading="lazy"
+          alt="Phone Events tab with suggested events and toggles"></a>
+        <figcaption>Events</figcaption>
+      </figure>
+      <figure>
+        <a class="zoom" href="screenshots/phone-hours.png"><img class="shot" src="screenshots/phone-hours.png" width="780" height="1688" loading="lazy"
+          alt="Phone Hours tab with home, sleep, work and free time"></a>
+        <figcaption>Hours</figcaption>
+      </figure>
     </div>
   </section>
 
