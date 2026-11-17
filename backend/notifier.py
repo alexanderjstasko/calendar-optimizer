@@ -59,12 +59,13 @@ from dotenv import load_dotenv
 import random
 
 import db
+import display_zone
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 logger = logging.getLogger("calendar_optimizer.notifier")
 
-DISPLAY_TZ = ZoneInfo("America/New_York")
+DISPLAY_TZ = display_zone.ZONE
 # One of these ends every subject line, picked at random (the person's request).
 SUBJECT_EMOJI = ("🦉", "🎲", "🌞", "🍀", "🚀", "🎯", "🧭", "🌈", "🐙", "🎈", "🦊", "🍉", "🛼", "🎷", "🪴", "⚡", "🧩", "🏔️", "🐢", "🎨")
 # The weekly plan email: "10/26 - 11/1 Cal Review"; a run mid-week: "10/28 - 11/1 Cal Review".

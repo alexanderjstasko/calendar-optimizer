@@ -2,7 +2,7 @@
 schedule_config.py — how often each job runs, read from .env.
 
 Every value is optional; the defaults below apply when a key is missing or
-empty. "off" disables a job. Times are America/New_York. Bad values never
+empty. "off" disables a job. Times are in the display zone (TIMEZONE, default America/New_York). Bad values never
 stop the server: they are reported (log + GET /schedule) and the default is
 used instead.
 
@@ -27,8 +27,9 @@ import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
+import display_zone
 
-TIMEZONE = "America/New_York"
+TIMEZONE = display_zone.NAME  # TIMEZONE in .env, default America/New_York
 DAY_NAMES = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 DEFAULTS: dict[str, str] = {

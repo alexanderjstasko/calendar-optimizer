@@ -15,7 +15,7 @@ Each site gets the cheapest reliable path, decided by domain:
                     the caller; pages with almost no text are 'unreadable'
 
 Normalized event: id, site, title, start, end, all_day, timezone, location,
-url, cost, category, summary, raw. Times are America/New_York ISO strings
+url, cost, category, summary, raw. Times are display-zone (TIMEZONE) ISO strings
 (date-only for all-day / time-unknown). `id` is stable across fetches
 (site + title + date) so discovered_events can be upserted.
 
@@ -36,10 +36,11 @@ from urllib.parse import urljoin, urlparse
 from zoneinfo import ZoneInfo
 
 import requests
+import display_zone
 
 logger = logging.getLogger(__name__)
 
-DISPLAY_TZ = "America/New_York"
+DISPLAY_TZ = display_zone.NAME
 NY = ZoneInfo(DISPLAY_TZ)
 UA = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36",

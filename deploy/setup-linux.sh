@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# One-time setup on the Raspberry Pi (Raspberry Pi OS / Debian, ARM64).
-# Run from the repo root after cloning and copying the secrets over:
+# One-time setup on an always-on Linux machine (Debian, Ubuntu, Raspberry Pi
+# OS; x86 or ARM). Run from the repo root after cloning and filling in .env:
 #
-#     ./deploy/setup-pi.sh
+#     ./deploy/setup-linux.sh
 #
 # Safe to re-run: it only installs what is missing, then (re)installs and
 # restarts the systemd service. Day-to-day updates use deploy/deploy.sh.
@@ -39,14 +39,14 @@ fi
 echo "Node $(node --version), npm $(npm --version) OK"
 
 say "Secrets and config"
-missing=0
-for f in .env backend/google_credentials.json backend/google_token.json; do
-  if [ -f "$f" ]; then echo "found   $f"; else echo "MISSING $f"; missing=1; fi
-done
-if [ "$missing" = 1 ]; then
-  echo "Copy the missing files from the Mac first (see deploy/README.md), then re-run." >&2
+if [ ! -f .env ]; then
+  echo "MISSING .env -- copy .env.example to .env and fill it in (see README.md), then re-run." >&2
   exit 1
 fi
+echo "found   .env"
+for f in backend/google_credentials.json backend/google_token.json; do
+  if [ -f "$f" ]; then echo "found   $f"; else echo "skip    $f (Google Calendar not set up; that is fine)"; fi
+done
 if ! command -v "$HOME/.local/bin/claude" >/dev/null && ! command -v claude >/dev/null; then
   echo "note: no 'claude' CLI found; LLM_BACKEND=cli needs it (see deploy/README.md)."
 fi
@@ -66,19 +66,24 @@ sudo systemctl daemon-reload
 sudo systemctl enable calendar-optimizer
 sudo systemctl restart calendar-optimizer
 
-say "Daily data backup (calendar_optimizer-data repo)"
-for unit in calendar-backup.service calendar-backup.timer; do
-  sed -e "s|@USER@|$USER|g" -e "s|@HOME@|$HOME|g" -e "s|@REPO@|$REPO|g" \
-    "deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
-done
-sudo systemctl daemon-reload
-sudo systemctl enable --now calendar-backup.timer
-systemctl list-timers calendar-backup.timer --no-pager | head -2
+# Optional: a nightly copy of the database to a private git repo of your own
+# (deploy/backup-data.sh). Installed when CALENDAR_DATA_REMOTE is set for this
+# run or a backup clone already exists.
+if [ -n "${CALENDAR_DATA_REMOTE:-}" ] || [ -d "${CALENDAR_DATA_DIR:-$HOME/calendar_optimizer-data}/.git" ]; then
+  say "Daily data backup"
+  for unit in calendar-backup.service calendar-backup.timer; do
+    sed -e "s|@USER@|$USER|g" -e "s|@HOME@|$HOME|g" -e "s|@REPO@|$REPO|g" \
+      "deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
+  done
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now calendar-backup.timer
+  systemctl list-timers calendar-backup.timer --no-pager | head -2
+fi
 
 say "Health check"
 for _ in $(seq 1 30); do
   if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
-    echo "backend is up: http://$(hostname):8000/  (approvals: /review)"
+    echo "backend is up: http://$(hostname):8000/"
     exit 0
   fi
   sleep 1

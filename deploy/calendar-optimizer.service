@@ -1,7 +1,7 @@
 # systemd unit for the calendar_optimizer backend (API + jobs + built calendar app).
-# Template: setup-pi.sh fills in @USER@, @HOME@ and @REPO@ and installs it as
+# Template: setup-linux.sh fills in @USER@, @HOME@ and @REPO@ and installs it as
 # /etc/systemd/system/calendar-optimizer.service. Edit this file, not the
-# installed copy, then re-run setup-pi.sh.
+# installed copy, then re-run setup-linux.sh.
 
 [Unit]
 Description=calendar_optimizer (FastAPI + APScheduler, port 8000)
@@ -21,7 +21,7 @@ Environment=PYTHONUNBUFFERED=1
 ExecStart=@REPO@/.venv/bin/python3 -m uvicorn --app-dir backend main:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=10
-# Keeps a runaway (e.g. a stuck CLI call) from taking the whole Pi down.
+# Keeps a runaway (e.g. a stuck CLI call) from taking the whole machine down.
 MemoryMax=1G
 
 [Install]

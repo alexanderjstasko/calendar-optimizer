@@ -43,7 +43,7 @@ The Telos tree
 
 Hard rules
 - Existing calendar entries are fixed. Never move, shorten or duplicate them.
-- Only propose events inside the planning window, in timezone America/New_York,
+- Only propose events inside the planning window, in the payload's `timezone`,
   as ISO 8601 with the UTC offset (all_day false), never overlapping a fixed
   timed event or each other. All-day fixed entries (trips, holidays) do not
   block time by themselves; use judgement about what they imply.

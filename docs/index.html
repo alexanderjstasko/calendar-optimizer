@@ -241,18 +241,16 @@
 
   <section id="setup">
     <h2>Setup</h2>
-    <p class="sub">You need Python 3.11+, Node 20.19+, a Notion integration token, and Claude: an Anthropic API key or a Claude subscription with the <code>claude</code> CLI.</p>
+    <p class="sub">You need a Mac or Linux computer that stays on, Python 3.11+, Node 20.19+, a free Notion account,
+      and Claude: an Anthropic API key or a Claude Pro/Max subscription. Calendars, phone access and emails are optional.</p>
 <pre><code>git clone https://github.com/alexanderjstasko/calendar-optimizer.git
 cd calendar-optimizer
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-cp .env.example .env      # fill in your tokens and calendar links
-(cd frontend &amp;&amp; npm install &amp;&amp; npm run build)
-.venv/bin/python3 -m uvicorn --app-dir backend main:app --port 8000</code></pre>
-    <p>Open <code>http://localhost:8000/</code>, then set your sleep, work hours and home address in the <strong>Hours</strong> tab.
-      The <a href="https://github.com/alexanderjstasko/calendar-optimizer#readme">README</a> covers every setting, Google Calendar sign-in and the approval emails.</p>
-    <div class="note">For everyday use, run it on an always-on machine such as a Raspberry Pi 4 and reach it from your phone over
-      <a href="https://tailscale.com">Tailscale</a>. The <a href="https://github.com/alexanderjstasko/calendar-optimizer/blob/main/deploy/README.md">Pi guide</a> sets up the service, updates and a daily backup.</div>
+python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r backend/requirements.txt
+(cd frontend &amp;&amp; npm ci &amp;&amp; npm run build)
+cp .env.example .env</code></pre>
+    <p>Then follow the <a href="https://github.com/alexanderjstasko/calendar-optimizer#2-download-and-set-up">step-by-step guide</a>:
+      time zone, the Notion template, Claude, your calendars, keeping it running and adding it to your phone.</p>
+    <div class="buttons"><a class="btn primary" href="https://github.com/alexanderjstasko/calendar-optimizer#readme">Open the setup guide</a></div>
   </section>
 
   <section id="notion">
@@ -268,7 +266,7 @@ cp .env.example .env      # fill in your tokens and calendar links
         </tbody>
       </table>
     </div>
-    <p class="sub" style="margin-top:16px">The full property list is in the <a href="https://github.com/alexanderjstasko/calendar-optimizer#notion-databases">README</a>.</p>
+    <p class="sub" style="margin-top:16px">Every column is explained in <a href="https://github.com/alexanderjstasko/calendar-optimizer/blob/main/docs/notion.md">docs/notion.md</a>, and there is a <a href="https://parallel-orangutan-22c.notion.site/Calendar-Optimizer-template-41b18723089b809287e2fe52965eee5b">ready-made template</a> to duplicate.</p>
   </section>
 
   <section id="privacy">

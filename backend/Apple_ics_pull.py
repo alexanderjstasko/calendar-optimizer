@@ -37,6 +37,7 @@ from dotenv import load_dotenv
 from icalendar import Calendar
 
 import db
+import display_zone
 
 # .env lives at the project root, one level above backend/.
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -53,7 +54,7 @@ APPLE_ICS_URL = os.environ.get("APPLE_ICS_URL")
 # Apple/iCloud feeds use clean IANA names and Schedule-X's ZonedDateTime
 # handles arbitrary zones correctly -- this fallback only matters for the
 # rare event with no timezone info at all.
-DISPLAY_TIMEZONE = "America/New_York"
+DISPLAY_TIMEZONE = display_zone.NAME
 DISPLAY_ZONEINFO = ZoneInfo(DISPLAY_TIMEZONE)
 
 # Rolling fetch/diff window. Adjust here if you want a wider or narrower
@@ -65,7 +66,7 @@ WINDOW_FUTURE_DAYS = 183  # ~6 months
 def _isoformat(dt) -> str:
     """ISO 8601 with UTC offset. Floating (naive) datetimes have no fixed
     relationship to UTC per RFC 5545 -- treated as already being in the
-    display zone (America/New_York), not UTC."""
+    display zone (TIMEZONE, default America/New_York), not UTC."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=DISPLAY_ZONEINFO)
     return dt.isoformat()

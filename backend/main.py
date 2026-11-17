@@ -34,6 +34,10 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+import Apple_ics_pull
+import Google_cal_pull
+import Outlook_ics_pull
+import Partiful_ics_pull
 from Apple_ics_pull import fetch_and_sync as sync_apple
 from Google_cal_pull import fetch_and_sync as sync_google
 from Outlook_ics_pull import fetch_and_sync as sync_outlook
@@ -138,8 +142,15 @@ async def lifespan(app: FastAPI):
         # to fire in the same second and fight over SQLite's write lock
         # ("database is locked", 2026-10-08).
         first = datetime.now()
-        syncs = (("google_sync", sync_google), ("apple_sync", sync_apple),
-                 ("outlook_sync", sync_outlook), ("partiful_sync", sync_partiful))
+        # Only the calendars set up in .env (an ICS link; for Google the OAuth
+        # files): an unused source is skipped quietly. A configured one runs,
+        # and fails loudly, exactly as before.
+        syncs = [(job_id, job) for job_id, job, configured in (
+            ("google_sync", sync_google, Google_cal_pull.TOKEN_PATH.exists() or Google_cal_pull.CREDENTIALS_PATH.exists()),
+            ("apple_sync", sync_apple, bool(Apple_ics_pull.APPLE_ICS_URL)),
+            ("outlook_sync", sync_outlook, bool(Outlook_ics_pull.OUTLOOK_ICS_URL)),
+            ("partiful_sync", sync_partiful, bool(Partiful_ics_pull.PARTIFUL_ICS_URL)),
+        ) if configured]
         for i, (job_id, job) in enumerate(syncs):
             scheduler.add_job(job, "interval", minutes=every, id=job_id, next_run_time=first + timedelta(seconds=20 * i))
     if schedule.settle.enabled:
@@ -148,13 +159,15 @@ async def lifespan(app: FastAPI):
             settle_task_time_job, "interval", minutes=schedule.settle.minutes, id="task_time_settle",
             next_run_time=datetime.now(), max_instances=1, coalesce=True,
         )
-    if schedule.scout_fetch.enabled:
+    # The events scout reads its sites from the Notion Website List; without one it is skipped quietly.
+    scout_configured = bool((os.environ.get("NOTION_WEBSITES_DB_ID") or "").strip())
+    if schedule.scout_fetch.enabled and scout_configured:
         j = schedule.scout_fetch
         scheduler.add_job(
             scout_fetch_job, CronTrigger(day_of_week=j.day_of_week, hour=j.hour, minute=j.minute, timezone=tz),
             id="scout_fetch", max_instances=1, coalesce=True, misfire_grace_time=6 * 3600,
         )
-    if schedule.scout_recommend.enabled:
+    if schedule.scout_recommend.enabled and scout_configured:
         j = schedule.scout_recommend
         scheduler.add_job(
             scout_recommend_job, CronTrigger(day_of_week=j.day_of_week, hour=j.hour, minute=j.minute, timezone=tz),
@@ -341,7 +354,7 @@ def optimizer_proposals(run_id: str | None = None, status: str | None = None) ->
 
 
 class Times(BaseModel):
-    """A user-chosen start/end, ISO 8601; naive values are America/New_York."""
+    """A user-chosen start/end, ISO 8601; naive values are in the display zone (TIMEZONE)."""
     start: str
     end: str
 

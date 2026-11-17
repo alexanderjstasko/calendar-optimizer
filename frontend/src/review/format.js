@@ -1,7 +1,7 @@
-// Display helpers for the review tabs. Everything is shown in the user's zone
-// (America/New_York), whatever zone the phone or browser happens to be in.
+// Display helpers for the review tabs. Everything is shown in the app's zone
+// (TIMEZONE in .env, default America/New_York), whatever zone the phone or browser is in.
 
-export const TZ = 'America/New_York'
+export const TZ = __APP_TIMEZONE__ // eslint-disable-line no-undef -- TIMEZONE in .env (vite.config.js)
 
 const inZone = (options) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, ...options })
 const weekdayDate = inZone({ weekday: 'short', month: 'short', day: 'numeric' }) // "Thu, Oct 9"

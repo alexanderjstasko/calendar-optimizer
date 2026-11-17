@@ -178,7 +178,7 @@ export function HoursTab({ apiUrl, hours, saved, savedAt, onSaved }) {
             <input
               type="text"
               maxLength={200}
-              placeholder="e.g. 1 Home Street, New York, NY"
+              placeholder="e.g. 1 Home Street, Springfield"
               value={draft.home || ''}
               onInput={(e) => setDraft({ ...draft, home: e.currentTarget.value })}
             />

@@ -29,8 +29,9 @@ import re
 import statistics
 from collections import Counter
 from zoneinfo import ZoneInfo
+import display_zone
 
-DISPLAY_TZ = ZoneInfo("America/New_York")
+DISPLAY_TZ = display_zone.ZONE
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 WEEKDAYS_PLURAL = ("Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays")
 TIME_SHARE = 0.6          # the modal start time must cover this share of occurrences, else "varies"

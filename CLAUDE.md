@@ -17,9 +17,11 @@ person's own instance: hosts, accounts, history. This file covers the code only.
   uvicorn worker), SQLite (`backend/events.db`, WAL) as the single source of truth.
 - **LLM:** `backend/llm_client.py` is the only module that talks to Claude. `LLM_BACKEND=api`
   (Anthropic SDK) or `cli` (the `claude` CLI on a subscription login).
-- **Display timezone:** `America/New_York` throughout.
-- **Target host:** a Raspberry Pi (Debian ARM64). Every dependency must have an ARM64 wheel
-  or be pure Python/JS, and stay light on RAM.
+- **Display timezone:** `TIMEZONE` in `.env` (default `America/New_York`), read once by
+  `backend/display_zone.py` and baked into the frontend at build time (`__APP_TIMEZONE__`).
+  Never write a zone name in code; use `display_zone.NAME` / `ZONE`.
+- **Target host:** an always-on Mac or Linux machine, often a Raspberry Pi (ARM64). Every
+  dependency must have an ARM64 wheel or be pure Python/JS, and stay light on RAM.
 
 ## Layout
 
@@ -33,7 +35,8 @@ person's own instance: hosts, accounts, history. This file covers the code only.
   writer), `notifier.py` (approval emails), `hours.py` (sleep/work/free hours).
 - Prompt files at the root: `system_prompt.md`, `placement_prompt.md`, `scout_prompt.md`;
   `preferences.md` holds the person's stated preferences. Edit these, not code, to tune the model.
-- `deploy/`: Raspberry Pi setup, deploy and backup scripts (`deploy/README.md`).
+- `deploy/`: always-on setup (`setup-mac.sh`, `setup-linux.sh`), `deploy.sh`, backups
+  (`docs/always-on.md`). A calendar source or Website List left empty in `.env` is not scheduled.
 - `.claude/launch.json`: dev servers for Claude Code's preview tooling (`demo-screenshots` serves
   the made-up demo week on port 8002).
 - `docs/`: the GitHub Pages site. Its screenshots come only from `tools/screenshots/`
@@ -85,6 +88,8 @@ with each database (a missing share returns 404, not 401).
 
 - Separation of concerns: normalization in the adapters, persistence in `db.py`, routing in
   `main.py`.
+- User docs: `README.md` (the guide) and `docs/*.md` (reference). Keep them in step with
+  the code: a new setting goes in `.env.example` and `docs/settings.md`.
 - Settings use the `LLM_` prefix, never `CLAUDE_` (Claude Code exports `CLAUDE_*` variables
   and python-dotenv never overrides an existing one).
 - With the `cli` backend, never pass `--bare` (it drops the subscription login).

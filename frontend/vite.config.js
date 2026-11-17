@@ -38,8 +38,12 @@ function serviceWorker() {
 export default defineConfig(({ mode }) => {
   // TAILNET in the root .env (e.g. "example-tailnet.ts.net") lets the dev
   // server answer every MagicDNS name on the tailnet; empty = localhost only.
-  const tailnet = (loadEnv(mode, '../', '').TAILNET || '').trim().replace(/^\.+|\.+$/g, '')
+  const env = loadEnv(mode, '../', '')
+  const tailnet = (env.TAILNET || '').trim().replace(/^\.+|\.+$/g, '')
   return {
+    // TIMEZONE in the root .env (an IANA name), the same value the backend reads;
+    // baked in at build time, so rebuild after changing it.
+    define: { __APP_TIMEZONE__: JSON.stringify((env.TIMEZONE || '').trim() || 'America/New_York') },
     plugins: [preact(), serviceWorker()],
     envDir: '../', // .env lives in the project root, one level up from frontend/
     server: {

@@ -17,7 +17,7 @@ resolves the actual UTC offset correctly either way, but when the TZID
 isn't a recognized IANA name it falls back to a wrapper object whose
 str() is NOT a clean, Temporal-parseable zone identifier -- verified with
 a synthetic Outlook-style feed before this was written. Since this
-project's convention is everything displays in America/New_York
+project's convention is everything displays in the display zone (TIMEZONE)
 regardless of source, the timezone label is hardcoded rather than derived
 from tzinfo -- the offset itself is already correct, only the label needs
 fixing.
@@ -37,6 +37,7 @@ from dotenv import load_dotenv
 from icalendar import Calendar
 
 import db
+import display_zone
 
 # .env lives at the project root, one level above backend/.
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -53,7 +54,7 @@ OUTLOOK_ICS_URL = os.environ.get("OUTLOOK_ICS_URL")
 # original bug here: a Pacific event kept its real -07:00 offset but got
 # stamped "America/New_York", which Temporal correctly rejects as an
 # inconsistent pair.
-DISPLAY_TIMEZONE = "America/New_York"
+DISPLAY_TIMEZONE = display_zone.NAME
 DISPLAY_ZONEINFO = ZoneInfo(DISPLAY_TIMEZONE)
 
 # Same window as Apple -- kept in sync intentionally so all recurring-event

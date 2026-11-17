@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 from icalendar import Calendar
 
 import db
+import display_zone
 
 # Anchored to this file's location, not cwd. .env lives at the project
 # root (one level above backend/), not inside backend/ itself — so this
@@ -39,14 +40,14 @@ PARTIFUL_ICS_URL = os.environ.get("PARTIFUL_ICS_URL")
 # floating (timezone-less) event. Per RFC 5545, floating time means
 # "whatever zone the viewer considers local," which for this project is
 # always America/New_York, not UTC.
-DISPLAY_TIMEZONE = "America/New_York"
+DISPLAY_TIMEZONE = display_zone.NAME
 DISPLAY_ZONEINFO = ZoneInfo(DISPLAY_TIMEZONE)
 
 
 def _isoformat(dt) -> str:
     """ISO 8601 with UTC offset. Floating (naive) datetimes have no fixed
     relationship to UTC per RFC 5545 -- treated as already being in the
-    display zone (America/New_York), not UTC."""
+    display zone (TIMEZONE, default America/New_York), not UTC."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=DISPLAY_ZONEINFO)
     return dt.isoformat()

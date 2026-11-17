@@ -30,8 +30,9 @@ strict tool mode and the CLI's --json-schema validator handle most reliably.
 """
 
 from __future__ import annotations
+import display_zone
 
-DISPLAY_TIMEZONE = "America/New_York"
+DISPLAY_TIMEZONE = display_zone.NAME  # TIMEZONE in .env, default America/New_York
 
 ITEM_TYPES = ("task", "goal", "travel", "free", "event")
 OPTIMIZER_ITEM_TYPES = ("task", "goal", "travel", "free")
@@ -135,7 +136,7 @@ RECOMMENDATION_SCHEMA: dict = {
                 "type": "object",
                 "properties": {
                     "discovered_event_id": {"type": "string", "description": "The candidate's id, copied verbatim."},
-                    "start": {"type": "string", "description": "ISO 8601 with UTC offset in America/New_York, e.g. 2026-10-02T18:00:00-04:00."},
+                    "start": {"type": "string", "description": f"ISO 8601 with UTC offset in {DISPLAY_TIMEZONE}, e.g. 2026-10-02T18:00:00-04:00."},
                     "end": {"type": "string", "description": "Same format; the candidate's end, or start plus a sensible duration when unknown."},
                     "goal_id": {"type": "string", "description": "The goals.id this event serves, or an empty string (fine for a strong option)."},
                     "why": {"type": "string", "description": "One or two sentences on why this matches the person's interests and history."},

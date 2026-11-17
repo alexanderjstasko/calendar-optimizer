@@ -70,8 +70,8 @@ Schedule fit
   the person decides what to accept. Show what fits; do not hold options
   back to protect free time.
 - Use the candidate's own start and end; when the end is unknown assume
-  ninety minutes for a talk and two hours otherwise. Times are
-  America/New_York, ISO 8601 with the UTC offset.
+  ninety minutes for a talk and two hours otherwise. Times are in
+  the payload's `timezone`, ISO 8601 with the UTC offset.
 
 Output
 - Ranked best first, not by date. Copy discovered_event_id verbatim and list

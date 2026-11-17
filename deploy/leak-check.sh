@@ -20,7 +20,7 @@ if [ -n "$TARGET" ]; then
   TARGET="$(cd "$TARGET" && pwd)"
 fi
 
-PATTERNS='sk-ant-[A-Za-z0-9_-]{20,}|ntn_[A-Za-z0-9]{30,}|secret_[A-Za-z0-9]{30,}|AIza[0-9A-Za-z_-]{30,}|GOCSPX-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|webcal:/{2}[^ "]+|p[0-9]+-caldav\.icloud\.com|outlook\.office365\.com/owa/calendar/[A-Za-z0-9]'
+PATTERNS='sk-ant-[A-Za-z0-9_-]{20,}|ntn_[A-Za-z0-9]{30,}|secret_[A-Za-z0-9]{30,}|AIza[0-9A-Za-z_-]{30,}|GOCSPX-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|webcal:/{2}[A-Za-z0-9-]+\.[A-Za-z0-9.-]+/|p[0-9]+-caldav\.icloud\.com|outlook\.office365\.com/owa/calendar/[A-Za-z0-9]'
 
 files() {
   if [ -n "$TARGET" ]; then

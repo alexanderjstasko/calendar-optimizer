@@ -44,6 +44,7 @@ import re
 from typing import Any
 
 import db
+import display_zone
 
 SETTING_KEY = "hours"
 PROFILES = ("weekdays", "weekends")
@@ -297,7 +298,7 @@ def too_soon_after_work(start: dt.datetime, hours: dict[str, Any] | None = None,
     the person still has to get there. Weekends and days off never are.
     `start` is aware; it is read in New York time.
     """
-    local = start.astimezone(ZoneInfo("America/New_York"))
+    local = start.astimezone(display_zone.ZONE)
     work = ranges_for(local.date(), hours).get("work")
     if not work:
         return False

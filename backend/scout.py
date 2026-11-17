@@ -55,6 +55,7 @@ import llm_client
 import notion_adapter
 import optimizer
 import preferences
+import display_zone
 from optimizer_schema import (
     DISPLAY_TIMEZONE,
     EXTRACT_TOOL_NAME,
@@ -132,11 +133,11 @@ def _llm_extract(url: str, text: str) -> list[dict]:
     today = dt.date.today()
     window_end = today + dt.timedelta(days=_int_setting("LLM_SCOUT_WINDOW_DAYS", DEFAULT_WINDOW_DAYS))
     system = (
-        "You extract public events from the text of a New York City events web page. "
+        "You extract public events from the text of an events web page. "
         f"Today is {today}. Return only events with a concrete calendar date between {today} and {window_end} "
         "inclusive; skip anything undated, in the past, or that is a venue or category link rather than an event. "
         "One entry per event (a listing with several dates becomes several entries). Use empty strings when a "
-        "field is unknown. Times are local New York time, 24-hour HH:MM. Keep summary to one short sentence. "
+        f"field is unknown. Times are local time ({display_zone.NAME}), 24-hour HH:MM. Keep summary to one short sentence. "
         "Links appear in the text as [https://...] right after the words they belong to: set url to the "
         "event's own page (the link after its title or its 'details'/'tickets' link), copied verbatim, and "
         "leave it empty rather than use a link to a category, venue or the listing page itself. "

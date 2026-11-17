@@ -44,7 +44,7 @@ const TABLET_MAX_WIDTH = 1024
 const MONTH_GRID_MIN_WIDTH = 760
 const SX_SMALL_CALENDAR_PX = 700
 
-const TIMEZONE = 'America/New_York'
+const TIMEZONE = __APP_TIMEZONE__ // eslint-disable-line no-undef -- TIMEZONE in .env (vite.config.js)
 const MONDAY = 1 // Schedule-X WeekDay enum: 1 = Monday ... 7 = Sunday
 
 // Day/week views draw the awake window from the Hours tab: the earliest

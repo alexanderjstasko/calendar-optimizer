@@ -15,6 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 import re
 import threading
+import display_zone
 
 DB_PATH = Path(__file__).parent / "events.db"
 
@@ -929,7 +930,7 @@ def get_goals(include_deleted: bool = False) -> list[dict]:
 
 # --- optimizer: calendar window, schedulable items, runs, proposals ----------
 
-DISPLAY_TZ = "America/New_York"
+DISPLAY_TZ = display_zone.NAME  # TIMEZONE in .env, default America/New_York
 OPTIMIZER_SOURCE = "optimizer"
 OPTIMIZER_CALENDAR_ID = "optimizer"
 # `queued` = a scout option ranked below the shown page, waiting for POST

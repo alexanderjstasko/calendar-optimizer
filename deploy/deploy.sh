@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Pull the latest main from GitHub and restart the service. Run on the Pi:
+# Pull the latest main from GitHub and restart the service. Run on the machine
+# that hosts it (set up with setup-linux.sh or setup-mac.sh):
 #
 #     ./deploy/deploy.sh          # pull, install what changed, build, restart
 #     ./deploy/deploy.sh --test   # same, but run the backend tests before restarting
@@ -15,7 +16,7 @@ RUN_TESTS=0
 [ "${1:-}" = "--test" ] && RUN_TESTS=1
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-  echo "Local changes to tracked files on the Pi -- commit them on the Mac instead:" >&2
+  echo "Local changes to tracked files -- commit (or stash) them first:" >&2
   git status --short --untracked-files=no >&2
   exit 1
 fi
@@ -59,7 +60,13 @@ if [ "$RUN_TESTS" = 1 ]; then
 fi
 
 echo "Restarting calendar-optimizer..."
-sudo systemctl restart calendar-optimizer
+if [ "$(uname)" = "Darwin" ]; then
+  launchctl kickstart -k "gui/$(id -u)/com.calendar-optimizer"
+  logs="tail -50 ~/Library/Logs/calendar-optimizer.log"
+else
+  sudo systemctl restart calendar-optimizer
+  logs="journalctl -u calendar-optimizer -n 50"
+fi
 for _ in $(seq 1 30); do
   if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
     echo "OK: backend is up at $(git log -1 --format='%h %s')"
@@ -67,5 +74,5 @@ for _ in $(seq 1 30); do
   fi
   sleep 1
 done
-echo "backend did not come back -- check: journalctl -u calendar-optimizer -n 50" >&2
+echo "backend did not come back -- check: $logs" >&2
 exit 1

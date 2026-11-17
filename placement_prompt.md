@@ -50,8 +50,8 @@ Hard rules
 - Existing calendar entries other than movable_blocks are fixed. Never
   overlap a fixed timed entry, an approved public event, or another proposal.
   All-day entries do not block time.
-- Only propose events inside the planning window, in timezone
-  America/New_York, as ISO 8601 with the UTC offset (all_day false). Copy
+- Only propose events inside the planning window, in the payload's
+  `timezone`, as ISO 8601 with the UTC offset (all_day false). Copy
   item_id and event_id values verbatim. Every event needs a unique short ref.
 - replaces_event_id is an empty string unless the event takes the place of a
   movable block (or of block_to_move). Never set it to anything else.

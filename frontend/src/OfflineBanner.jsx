@@ -1,8 +1,8 @@
 import { useOffline } from './offline.js'
+import { TZ as ZONE } from './review/format.js'
 
 // Thin strip under the header while the app shows saved data (see offline.js).
 
-const ZONE = 'America/New_York'
 const DAY = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE })
 const TIME = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ZONE })
 const DATE_TIME = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: ZONE })

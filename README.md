@@ -2,116 +2,201 @@
 
 A self-hosted calendar that merges Google, Apple, Outlook and Partiful into one view,
 reads your goals and tasks from Notion, and has Claude plan them into your week. Every
-planned block is a proposal: you approve it, move it or reject it in the app before it
-lands on your calendar. A scout also suggests public events that fit your free evenings.
+planned block is a proposal: you approve it, move it or reject it before it lands on
+your calendar. An optional scout suggests events that fit your free evenings.
 
-Runs on a Mac for development and on a Raspberry Pi 4 for real use, reached from your
-phone over [Tailscale](https://tailscale.com). Nothing is hosted for you; your data stays
-on your machine.
+It runs on your own computer; your data stays there. Overview with screenshots:
+https://alexanderjstasko.github.io/calendar-optimizer/
 
-Overview and setup at a glance: https://alexanderjstasko.github.io/calendar-optimizer/
+---
 
-## What you need
+## 1. Requirements
 
-- Python 3.11+ and Node 20.19+ (or 22.12+)
-- A Notion account and an internal integration token
-- Claude: an Anthropic API key, or a Claude subscription and the `claude` CLI
-- Optional: a Google Cloud OAuth client (Google Calendar), the secret iCal links of your
-  Apple / Outlook / Partiful calendars, a Gmail app password (approval emails), Tailscale
+**A computer that stays on.** A Mac or a Linux machine (Debian, Ubuntu, Raspberry Pi
+OS; x86 or ARM) that does not sleep: the syncs and the weekly plan run on a schedule.
+A laptop works while it is awake. Windows is not supported (WSL may work, untested).
 
-## Quick start (local)
+**Software on it:**
+- [Python](https://www.python.org/downloads/) 3.11 or newer: `python3 --version`
+- [Node.js](https://nodejs.org/) 20.19+ or 22.12+: `node --version`
+- [git](https://git-scm.com/downloads): `git --version`
+
+**Accounts:**
+- **Notion** (the free plan is enough): your goals, routines and tasks live there.
+- **Claude**, one of:
+  - an **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com)
+    (pay per use; see "Costs" below), or
+  - a **Claude Pro or Max subscription**, used through the `claude` command-line tool.
+
+  Only Claude is supported; other AI models are not.
+- **Your calendars**, any you use: Google (free Google Cloud project), Apple iCloud,
+  Outlook, Partiful. All optional, and none are ever changed by the app.
+- **Optional:** [Tailscale](https://tailscale.com) (free) to use it from your phone;
+  a Gmail account with an app password for the review emails.
+
+**Costs:** the software is free. Claude is the only running cost: a weekly plan with
+the default model is roughly $0.30-$1 on the API, and the daily events scout costs
+more than the plan over a week. To spend less, set a smaller model (`LLM_MODEL` in
+`.env`) or leave the scout off. With a subscription there is no extra charge.
+
+---
+
+## 2. Download and set up
+
+Run these in a terminal on the computer that will host it.
+
+### 2.1 Get the code and install it
 
 ```bash
 git clone https://github.com/alexanderjstasko/calendar-optimizer.git
 cd calendar-optimizer
 python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-cp .env.example .env      # then fill it in, see below
-(cd frontend && npm install && npm run build)
-.venv/bin/python3 -m uvicorn --app-dir backend main:app --port 8000
+.venv/bin/pip install -r backend/requirements.txt
+(cd frontend && npm ci && npm run build)
+cp .env.example .env
 ```
 
-Open http://localhost:8000/. Run the tests (no network, no tokens spent):
+This downloads the app, installs what it needs, builds the calendar app and creates
+your settings file, `.env`. Open `.env` in any text editor for the next steps.
+
+### 2.2 Time zone
+
+Set `TIMEZONE` in `.env` to your zone, for example `Europe/London` or
+`America/Chicago` ([list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)).
+If you leave it out, the app uses **America/New_York**.
+
+### 2.3 Notion
+
+1. Open the **[Notion template](https://parallel-orangutan-22c.notion.site/Calendar-Optimizer-template-41b18723089b809287e2fe52965eee5b)** and click **Duplicate**. You get
+   two databases: **Telos tree** (your goals, routines and tasks) and **Website List**
+   (sites for the events scout).
+2. Create an integration at [notion.so/profile/integrations](https://www.notion.so/profile/integrations)
+   → **New integration** (type *Internal*). Copy its secret into `.env` as `NOTION_TOKEN`.
+3. Open each of the two databases → **•••** → **Connections** → add your integration.
+   (Skipping this gives a "404 not found" error, not a permission error.)
+4. Copy each database's ID into `.env`: open the database as a full page; the ID is the
+   32 characters in the link before `?v=`.
+   - Telos tree → `NOTION_GOALS_DB_ID`
+   - Website List → `NOTION_WEBSITES_DB_ID` (leave empty to keep the events scout off)
+
+Replace the example rows with your own. What each column does: [docs/notion.md](docs/notion.md).
+
+### 2.4 Claude
+
+**With an API key:** in `.env` set `LLM_BACKEND=api` and `ANTHROPIC_API_KEY=` your key.
+
+**Or with a Pro/Max subscription:**
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+claude setup-token
+```
+Put the token it prints in `.env` as `CLAUDE_CODE_OAUTH_TOKEN`, and set `LLM_BACKEND=cli`.
+
+Check either way (spends nothing):
+```bash
+.venv/bin/python3 backend/llm_client.py --check
+```
+
+### 2.5 Calendars
+
+Set only the ones you use; the rest are skipped.
+
+- **Apple iCloud:** Calendar app → right-click the calendar → **Share Calendar** → tick
+  **Public Calendar** → copy the link, change `webcal://` to `https://`, and put it in
+  `APPLE_ICS_URL`.
+- **Outlook:** Outlook on the web → Settings → Calendar → **Shared calendars** →
+  **Publish a calendar** → copy the **ICS** link into `OUTLOOK_ICS_URL`.
+- **Partiful:** copy your calendar subscription link into `PARTIFUL_ICS_URL`.
+- **Google:** in [Google Cloud](https://console.cloud.google.com/): create a project,
+  enable the **Google Calendar API**, set up the OAuth consent screen (add yourself as
+  a user, then **Publish app** so the sign-in does not expire weekly), and create an
+  **OAuth client ID** of type *Desktop app*. Download its JSON as
+  `backend/google_credentials.json`, then sign in once:
+  ```bash
+  .venv/bin/python3 backend/Google_cal_pull.py
+  ```
+
+These links are private: anyone with one can read that calendar. They stay in `.env`.
+
+### 2.6 First run
 
 ```bash
-cd backend && ../.venv/bin/python3 -m pytest tests -q
+.venv/bin/python3 -m uvicorn --app-dir backend main:app --host 0.0.0.0 --port 8000
 ```
 
-For frontend work, run `npm run dev` in `frontend/` (port 5173) next to the backend.
+Open **http://localhost:8000**. Your calendars appear within a minute. Then:
 
-## Configuration
+1. **Hours** tab: set when you sleep and work, your office days, your home address and
+   how much free time to keep each week. The planner never books over these.
+2. **Plan** tab → **Re-plan**: Claude plans the rest of this week (a few minutes).
+3. Approve what you like. Approved blocks turn green on the calendar.
 
-Everything secret or personal goes in `.env`, which git ignores. `.env.example` lists
-every setting with its default. The important ones:
+Stop it with `Ctrl+C` once that works, and set it up to run on its own.
 
-| Setting | What it is |
-|---|---|
-| `NOTION_TOKEN`, `NOTION_GOALS_DB_ID` | Your integration token and the Telos tree database (required) |
-| `NOTION_WEBSITES_DB_ID` | Website List database for the events scout (optional) |
-| `LLM_BACKEND` | `api` (needs `ANTHROPIC_API_KEY`) or `cli` (uses your `claude` login) |
-| `APPLE_ICS_URL`, `OUTLOOK_ICS_URL`, `PARTIFUL_ICS_URL` | Secret iCal feed links; leave empty to skip a source |
-| `TAILNET` | Your MagicDNS suffix (`example-tailnet.ts.net`), so phones on the tailnet can use the app |
-| `NOTIFY_EMAIL_TO` + `NOTIFY_SMTP_*` | Approval emails after each plan; unset = off |
-| `*_DAYS`, `*_TIME`, `*_EVERY_MIN` | When each background job runs; `off` disables one |
+### 2.7 Keep it running
 
-**Google Calendar:** create an OAuth client (Desktop app) in Google Cloud with the
-Calendar API enabled, save it as `backend/google_credentials.json`, then run
-`.venv/bin/python3 backend/Google_cal_pull.py` once to sign in. Delete
-`backend/google_token.json` to sign in again.
+```bash
+./deploy/setup-mac.sh      # on a Mac
+./deploy/setup-linux.sh    # on Linux (asks for your password for sudo)
+```
 
-**Your hours:** sleep, work, office days, home address and the free-time floor are set
-in the app's Hours tab, not in files.
+Either one starts the app now and again after every restart. On a Mac, also open
+**System Settings → Energy** and turn on **Prevent automatic sleeping when the display
+is off**. To update to the newest version later: `./deploy/deploy.sh`.
+Details, logs and backups: [docs/always-on.md](docs/always-on.md).
 
-## Notion databases
+### 2.8 On your phone
 
-Share each database with your integration (`•••` → Connections), or the API answers 404.
+**Same Wi-Fi:** open `http://<the computer's local IP>:8000` (on a Mac: System Settings
+→ Wi-Fi → Details shows it).
 
-**Telos tree** (`NOTION_GOALS_DB_ID`), with sub-items turned on:
+**Anywhere, as a home-screen app** (needs Tailscale):
+1. Install Tailscale on the computer and on your phone and sign in to both with the
+   same account.
+2. In the [Tailscale admin console](https://login.tailscale.com/admin/dns), enable
+   **MagicDNS** and **HTTPS Certificates**.
+3. On the computer: `tailscale serve --bg 8000`
+4. On your phone, open `https://<computer name>.<your tailnet>.ts.net` and use
+   **Share → Add to Home Screen**. The app then also works offline with the last data
+   it saw.
+5. In `.env`, set `NOTIFY_APP_URL` to that address (email links) and `TAILNET` to the
+   `<your tailnet>.ts.net` part.
 
-| Property | Type | Used for |
-|---|---|---|
-| (title) | title | The name |
-| `Level` | select | `Telos`, `Goal`, `Project` (structure), `Routine` (recurring), `Task` (one-off) |
-| `Parent item` | relation | The tree |
-| `Status` | status/select | `Not started`, `In-Progress`, `On Hold` (pauses a subtree), `Done`, `Dropped` |
-| `Priority` | select | `Critical`, `High`, `Medium`, `Low` (inherited from ancestors) |
-| `Type` | select | Routines: `Routine` (placed by code), `Flexible` (placed by Claude), `Event Interest` (scout only) |
-| `Times/Week` | number | Routine pace (7 = daily, 0.5 = every other week) |
-| `Session Time (hr)` | number | Length of one session |
-| `Time to Complete` | number | Hours a task (or project) needs |
-| `Time Spent` | number | Written by the app after a block passes |
-| `Target Date` | date | Deadline / target |
-| `Display` | checkbox | Unchecked = context for the planner, never scheduled |
-| `Day of Week`, `Time of Day` | select / text | Allowed days and a time window |
-| `Location` | text | Where it happens (travel is planned around it) |
-| `Notes for LLM` | text | Free-text guidance Claude follows |
-| `Last Occurred`, `Sessions` | date / number | Written by the app |
+### 2.9 Optional extras
 
-**Website List** (optional, `NOTION_WEBSITES_DB_ID`): `URL` (title), `Upcoming Event`
-(text), `Events Attended` (number).
+- **Review emails** when a new plan is ready: fill in the `NOTIFY_*` settings in `.env`
+  (for Gmail: `smtp.gmail.com`, port 587 and an
+  [app password](https://myaccount.google.com/apppasswords)).
+- **Events scout:** add event listing pages for your city to the Website List (one URL
+  per row) and set `NOTION_WEBSITES_DB_ID`. See [docs/events-scout.md](docs/events-scout.md).
+- **When jobs run:** the `*_DAYS`, `*_TIME` and `*_EVERY_MIN` settings
+  ([docs/settings.md](docs/settings.md)).
 
-The app writes to Notion only from `backend/time_tracker.py` (time spent, last occurred,
-sessions) and the scout (`Upcoming Event`), and only after you approved the block.
+After changing `.env`, restart: run `./deploy/deploy.sh`, or press `Ctrl+C` and start
+it again. After changing `TIMEZONE`, also rebuild: `(cd frontend && npm run build)`.
 
-## Tuning the planner
+---
 
-The prompts are plain files: `system_prompt.md` (weekly plan), `placement_prompt.md`
-(fitting one new item), `scout_prompt.md` (events). Write your standing wishes in
-`preferences.md` ("Keep Friday evenings free."). The app learns from your approvals and
-rejections into `preferences.learned.md` (git-ignored).
+## 3. Using it
 
-## Running it on a Raspberry Pi
+- **The weekly rhythm.** Every Sunday morning Claude plans the coming Monday to Sunday
+  around your calendars, hours and free-time floor. You get an email (if set up) and
+  review the plan in the **Plan** tab: a recurring item is one card with one switch;
+  open it to move or skip a single day. Nothing is booked until you approve it.
+- **During the week.** A new item in Notion is placed within the hour, and a meeting
+  that lands on an approved block produces a suggested move. Both wait for your approval.
+  **Re-plan** in the Plan tab plans the rest of the week at any time.
+- **The four tabs.** **Calendar**: everything in one place; tap a block to move or
+  delete it, or drag it. **Events**: the scout's suggestions. **Plan**: what to approve.
+  **Hours**: sleep, work and planning settings.
+- **Tuning.** Write standing wishes in `preferences.md` ("Keep Friday evenings free.").
+  The app also learns from what you approve and reject.
+- **Notion stays the source.** Edit goals, routines and tasks there. After a block has
+  passed, the app writes the time spent and the last session back to Notion.
 
-See [`deploy/README.md`](deploy/README.md): one systemd service, `deploy/deploy.sh` to
-update, an optional daily data backup to a private repo of your own
-(`CALENDAR_DATA_REMOTE=git@github.com:you/calendar_optimizer-data.git ./deploy/backup-data.sh`
-the first time). Run the backend on one host at a time, or jobs and emails happen twice.
+Something not working? [docs/troubleshooting.md](docs/troubleshooting.md).
 
-## Using it with Claude Code
+---
 
-`CLAUDE.md` describes the architecture for Claude Code. Put notes about your own setup
-(hosts, accounts) in `CLAUDE.local.md`; Claude Code reads it too.
-
-## License
-
-MIT, see [LICENSE](LICENSE).
+Using Claude Code on this project? `CLAUDE.md` describes the architecture; put notes
+about your own setup in `CLAUDE.local.md`. MIT licensed, see [LICENSE](LICENSE).
