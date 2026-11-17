@@ -9,6 +9,8 @@ Runs on a Mac for development and on a Raspberry Pi 4 for real use, reached from
 phone over [Tailscale](https://tailscale.com). Nothing is hosted for you; your data stays
 on your machine.
 
+Overview and setup at a glance: https://alexanderjstasko.github.io/calendar-optimizer/
+
 ## What you need
 
 - Python 3.11+ and Node 20.19+ (or 22.12+)
