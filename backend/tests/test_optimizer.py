@@ -73,8 +73,8 @@ def _seed():
         "location": None, "status": "Done", "last_modified": "x",
     })
     db.upsert_goal({
-        "source": "notion", "source_goal_id": "g1", "goal": "Rockclimb", "frequency": "2x Week",
-        "end_date": None, "required_time_hr": 2.0, "priority": "High", "location": "Brooklyn Boulders",
+        "source": "notion", "source_goal_id": "g1", "goal": "Swim", "frequency": "2x Week",
+        "end_date": None, "required_time_hr": 2.0, "priority": "High", "location": "City Pool",
         "days_of_week": json.dumps(["Monday", "Wednesday"]), "time_of_day_window": "Afterwork",
         "show_on_calendar": 1, "notes_for_llm": "Prefer the 6pm session.", "last_occurred": "2026-09-16",
         "status": "In progress", "last_modified": "x",
@@ -150,7 +150,7 @@ def test_payload_marks_optimizer_placed_events(monkeypatch):
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     run_id = "run_seed"
     db.create_optimizer_run(run_id, now, "api", "m", "a", "b")
-    db.insert_proposals(run_id, [_event("p1", "goal", "notion_g1", "Rockclimb", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00")], now)
+    db.insert_proposals(run_id, [_event("p1", "goal", "notion_g1", "Swim", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00")], now)
     assert db.promote_proposal("run_seed_1", now) == "optimizer_run_seed_1"
 
     payload, _ = optimizer.build_payload(*optimizer.plan_window(NOW, HORIZON))
@@ -172,15 +172,15 @@ def test_validation_flags_each_failure_mode():
         _event("travel-ref", "travel", "ok", "Travel to Renew", "2026-09-21T12:40:00-04:00", "2026-09-21T13:00:00-04:00"),
         _event("bad-id", "goal", "notion_nope", "Ghost", "2026-09-23T18:00:00-04:00", "2026-09-23T20:00:00-04:00"),
         _event("bad-travel", "travel", "no-such-ref", "Travel", "2026-09-24T08:00:00-04:00", "2026-09-24T08:30:00-04:00"),
-        _event("overlap-fixed", "goal", "notion_g1", "Climb", "2026-09-21T10:00:00-04:00", "2026-09-21T12:00:00-04:00"),
-        _event("overlap-prop", "goal", "notion_g1", "Climb", "2026-09-21T13:30:00-04:00", "2026-09-21T15:30:00-04:00"),
-        _event("outside", "goal", "notion_g1", "Climb", "2026-10-20T18:00:00-04:00", "2026-10-20T20:00:00-04:00"),
-        _event("backwards", "goal", "notion_g1", "Climb", "2026-09-23T20:00:00-04:00", "2026-09-23T18:00:00-04:00"),
-        {**_event("tz", "goal", "notion_g1", "Climb", "2026-09-25T18:00:00-04:00", "2026-09-25T20:00:00-04:00"), "timezone": "UTC"},
+        _event("overlap-fixed", "goal", "notion_g1", "Swim", "2026-09-21T10:00:00-04:00", "2026-09-21T12:00:00-04:00"),
+        _event("overlap-prop", "goal", "notion_g1", "Swim", "2026-09-21T13:30:00-04:00", "2026-09-21T15:30:00-04:00"),
+        _event("outside", "goal", "notion_g1", "Swim", "2026-10-20T18:00:00-04:00", "2026-10-20T20:00:00-04:00"),
+        _event("backwards", "goal", "notion_g1", "Swim", "2026-09-23T20:00:00-04:00", "2026-09-23T18:00:00-04:00"),
+        {**_event("tz", "goal", "notion_g1", "Swim", "2026-09-25T18:00:00-04:00", "2026-09-25T20:00:00-04:00"), "timezone": "UTC"},
         _event("ctx", "goal", "notion_work", "Work", "2026-09-24T09:00:00-04:00", "2026-09-24T17:00:00-04:00"),
         _event("free", "free", "", "Free time", "2026-09-26T13:00:00-04:00", "2026-09-26T16:00:00-04:00"),
         _event("evt", "event", "abc", "Public event", "2026-09-27T13:00:00-04:00", "2026-09-27T15:00:00-04:00"),
-        {**_event("move", "goal", "notion_g1", "Climb", "2026-09-28T18:00:00-04:00", "2026-09-28T20:00:00-04:00"), "replaces_event_id": "optimizer_x"},
+        {**_event("move", "goal", "notion_g1", "Swim", "2026-09-28T18:00:00-04:00", "2026-09-28T20:00:00-04:00"), "replaces_event_id": "optimizer_x"},
     ]
     checked = {c["ref"]: c for c in optimizer.validate_proposals(events, payload, start, end, fixed)}
     assert "never moved by a plan run" in checked["move"]["invalid_reason"]
@@ -205,8 +205,8 @@ def test_validation_allows_travel_to_abut_destination():
     start, end = optimizer.plan_window(NOW, HORIZON)
     payload, fixed = optimizer.build_payload(start, end)
     events = [
-        _event("p1", "goal", "notion_g1", "Climb", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00", "Brooklyn Boulders"),
-        _event("t1", "travel", "p1", "Travel to Climb", "2026-09-21T17:30:00-04:00", "2026-09-21T18:00:00-04:00", "Brooklyn Boulders"),
+        _event("p1", "goal", "notion_g1", "Swim", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00", "City Pool"),
+        _event("t1", "travel", "p1", "Travel to Swim", "2026-09-21T17:30:00-04:00", "2026-09-21T18:00:00-04:00", "City Pool"),
     ]
     checked = optimizer.validate_proposals(events, payload, start, end, fixed)
     assert [c["status"] for c in checked] == ["proposed", "proposed"]
@@ -224,8 +224,8 @@ def test_run_stores_proposals_and_run_row(monkeypatch):
         return _fake_result({
             "events": [
                 _event("p1", "task", "notion_t1", "Renew", "2026-09-21T13:00:00-04:00", "2026-09-21T14:00:00-04:00"),
-                _event("p2", "goal", "notion_g1", "Climb", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00", "Brooklyn Boulders"),
-                _event("p3", "travel", "p2", "Travel to Climb", "2026-09-21T17:30:00-04:00", "2026-09-21T18:00:00-04:00", "Brooklyn Boulders"),
+                _event("p2", "goal", "notion_g1", "Swim", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00", "City Pool"),
+                _event("p3", "travel", "p2", "Travel to Swim", "2026-09-21T17:30:00-04:00", "2026-09-21T18:00:00-04:00", "City Pool"),
                 _event("bad", "goal", "notion_ghost", "Ghost", "2026-09-23T18:00:00-04:00", "2026-09-23T20:00:00-04:00"),
             ],
             "unscheduled": [{"item_type": "goal", "item_id": "notion_g1", "reason": "only one slot free"}],
@@ -242,7 +242,7 @@ def test_run_stores_proposals_and_run_row(monkeypatch):
     assert "submit_schedule" in captured["system"]
 
     assert summary["proposed"] == 3 and summary["invalid"] == 1
-    assert summary["goals"] == 3 and summary["context_goals"] == 1  # Rockclimb + the two built-in reviews
+    assert summary["goals"] == 3 and summary["context_goals"] == 1  # Swim + the two built-in reviews
     assert "context_goals" in captured["system"] and "notes_for_llm" in captured["system"]
     assert "learned_preferences" in captured["system"]
     assert summary["learning"]["refreshed"] is False
@@ -263,7 +263,7 @@ def test_run_stores_proposals_and_run_row(monkeypatch):
     rows = db.get_proposals(run_id=summary["run_id"])
     assert [r["status"] for r in rows] == ["proposed", "proposed", "proposed", "invalid"]
     assert rows[0]["id"] == f"{summary['run_id']}_1"  # ordered by start: the 13:00 task block first
-    assert rows[1]["item_type"] == "travel"  # 17:30 travel block precedes the 18:00 climb
+    assert rows[1]["item_type"] == "travel"  # 17:30 travel block precedes the 18:00 swim
     assert summary["run_id"].startswith("run_") and len(summary["run_id"].split("_")) == 4
     assert "unknown goal id" in rows[-1]["invalid_reason"]
     assert db.get_schedule_x_events(calendar_id="optimizer") == []  # nothing promoted yet
@@ -311,8 +311,8 @@ def test_dry_run_counts_tokens_without_calling_the_model(monkeypatch):
 def test_promote_puts_event_on_calendar_and_marks_goal(monkeypatch):
     _seed()
     plan = {"events": [
-        _event("p1", "goal", "notion_g1", "Rockclimb", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00", "Brooklyn Boulders"),
-        _event("p2", "travel", "p1", "Travel to Rockclimb", "2026-09-21T17:30:00-04:00", "2026-09-21T18:00:00-04:00", "Brooklyn Boulders"),
+        _event("p1", "goal", "notion_g1", "Swim", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00", "City Pool"),
+        _event("p2", "travel", "p1", "Travel to Swim", "2026-09-21T17:30:00-04:00", "2026-09-21T18:00:00-04:00", "City Pool"),
     ], "unscheduled": [], "notes": ""}
     monkeypatch.setattr(optimizer.llm_client, "complete_structured", lambda *a, **k: _fake_result(plan))
     summary = optimizer.run_optimizer(now=NOW, horizon_days=HORIZON)
@@ -328,7 +328,7 @@ def test_promote_puts_event_on_calendar_and_marks_goal(monkeypatch):
     assert len(shown) == 1
     assert shown[0]["id"] == goal_event
     assert shown[0]["start"] == f"2026-09-21T18:00:00-04:00[{DISPLAY_TIMEZONE}]"
-    assert shown[0]["title"] == "Rockclimb"
+    assert shown[0]["title"] == "Swim"
 
     goal = db.get_goals()[0]
     assert json.loads(goal["scheduled_event_ids"]) == [goal_event]
@@ -437,7 +437,7 @@ def test_missing_or_empty_system_prompt_file_is_a_config_error(tmp_path, monkeyp
 def test_revoke_takes_a_promoted_event_off_the_calendar(monkeypatch):
     _seed()
     plan = {"events": [
-        _event("p1", "goal", "notion_g1", "Rockclimb", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00"),
+        _event("p1", "goal", "notion_g1", "Swim", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00"),
     ], "unscheduled": [], "notes": ""}
     monkeypatch.setattr(optimizer.llm_client, "complete_structured", lambda *a, **k: _fake_result(plan))
     run_id = optimizer.run_optimizer(now=NOW, horizon_days=HORIZON)["run_id"]
@@ -504,7 +504,7 @@ def test_calendar_review_is_a_built_in_sunday_goal_sized_from_the_hours_tab():
 def test_pending_routine_blocks_are_fixed_for_the_model_and_survive_the_run(monkeypatch):
     _seed()
     db.upsert_goal({
-        "source": "notion", "source_goal_id": "shave", "goal": "Shave", "frequency": "Daily", "end_date": None,
+        "source": "notion", "source_goal_id": "floss", "goal": "Floss", "frequency": "Daily", "end_date": None,
         "required_time_hr": 0.25, "priority": None, "location": "Home", "days_of_week": None, "time_of_day_window": None,
         "show_on_calendar": 1, "notes_for_llm": None, "last_occurred": "2026-09-17", "goal_type": "Routine",
         "status": "In progress", "last_modified": "x",
@@ -513,20 +513,20 @@ def test_pending_routine_blocks_are_fixed_for_the_model_and_survive_the_run(monk
 
     def fake_complete(system, user, schema, **kw):
         captured["payload"] = json.loads(user)
-        shave = next(e for e in captured["payload"]["calendar"] if e["title"] == "Shave")
+        floss = next(e for e in captured["payload"]["calendar"] if e["title"] == "Floss")
         # The model overlapping a pending routine block is held back like any clash.
         return _fake_result({"events": [
-            _event("p1", "goal", "notion_g1", "Climb", shave["start"], shave["end"]),
+            _event("p1", "goal", "notion_g1", "Swim", floss["start"], floss["end"]),
             _event("p2", "task", "notion_t1", "Renew", "2026-09-21T13:00:00-04:00", "2026-09-21T14:00:00-04:00"),
         ], "unscheduled": [], "notes": ""})
 
     monkeypatch.setattr(optimizer.llm_client, "complete_structured", fake_complete)
     summary = optimizer.run_optimizer(now=NOW, horizon_days=HORIZON)
-    assert summary["routine"]["placed"] == 15 and "Shave" not in [g["title"] for g in captured["payload"]["goals"]]
-    pending_shave = [e for e in captured["payload"]["calendar"] if e["title"] == "Shave"]
-    assert len(pending_shave) == 15 and "treat as fixed" in pending_shave[0]["source"]
+    assert summary["routine"]["placed"] == 15 and "Floss" not in [g["title"] for g in captured["payload"]["goals"]]
+    pending_floss = [e for e in captured["payload"]["calendar"] if e["title"] == "Floss"]
+    assert len(pending_floss) == 15 and "treat as fixed" in pending_floss[0]["source"]
     rows = db.get_proposals(run_id=summary["run_id"])  # by start: the Saturday clash first, the Monday task block second
-    assert [r["status"] for r in rows] == ["invalid", "proposed"] and "overlaps existing event 'Shave'" in rows[0]["invalid_reason"]
+    assert [r["status"] for r in rows] == ["invalid", "proposed"] and "overlaps existing event 'Floss'" in rows[0]["invalid_reason"]
     # The routine proposals are still pending (not superseded by their own pass) and nothing was promoted.
     assert len(db.get_proposals(run_id=summary["routine"]["run_id"], status="proposed")) == 15
     assert db.get_proposals(status="promoted") == []
@@ -539,7 +539,7 @@ def test_pending_routine_blocks_are_fixed_for_the_model_and_survive_the_run(monk
 def test_failed_model_call_rolls_the_routine_proposals_back(monkeypatch):
     _seed()
     db.upsert_goal({
-        "source": "notion", "source_goal_id": "shave", "goal": "Shave", "frequency": "Daily", "end_date": None,
+        "source": "notion", "source_goal_id": "floss", "goal": "Floss", "frequency": "Daily", "end_date": None,
         "required_time_hr": 0.25, "priority": None, "location": "Home", "days_of_week": None, "time_of_day_window": None,
         "show_on_calendar": 1, "notes_for_llm": None, "last_occurred": "2026-09-17", "goal_type": "Routine",
         "status": "In progress", "last_modified": "x",
@@ -581,15 +581,15 @@ def test_run_persists_the_model_ref_so_travel_attaches_to_its_destination(monkey
 
     _seed()
     plan = {"events": [
-        _event("p1", "goal", "notion_g1", "Rockclimb", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00"),
+        _event("p1", "goal", "notion_g1", "Swim", "2026-09-21T18:00:00-04:00", "2026-09-21T20:00:00-04:00"),
         _event("p2", "travel", "p1", "Commute", "2026-09-21T17:20:00-04:00", "2026-09-21T17:50:00-04:00"),
     ], "unscheduled": [], "notes": ""}
     monkeypatch.setattr(optimizer.llm_client, "complete_structured", lambda *a, **k: _fake_result(plan))
     run_id = optimizer.run_optimizer(now=NOW)["run_id"]
     rows = db.get_proposals(run_id=run_id)
-    assert {r["title"]: r["ref"] for r in rows} == {"Rockclimb": "p1", "Commute": "p2"}
+    assert {r["title"]: r["ref"] for r in rows} == {"Swim": "p1", "Commute": "p2"}
     [series] = review_model.group_series(rows)  # title and timing don't match: only the ref ties them
-    assert series["title"] == "Rockclimb" and series["occurrences"][0]["travel"]["title"] == "Commute"
+    assert series["title"] == "Swim" and series["occurrences"][0]["travel"]["title"] == "Commute"
 
 
 def test_init_db_adds_review_columns_to_an_old_proposed_events_table(tmp_path, monkeypatch):
@@ -648,13 +648,13 @@ def test_validation_normalizes_offsets_ignores_empty_refs_and_drops_orphaned_tra
     payload, fixed = optimizer.build_payload(start, end)
     events = [
         # Written in UTC: stored with New York's offset, so the calendar can draw it.
-        _event("utc", "goal", "notion_g1", "Climb", "2026-09-22T22:00:00+00:00", "2026-09-23T00:00:00+00:00"),
+        _event("utc", "goal", "notion_g1", "Swim", "2026-09-22T22:00:00+00:00", "2026-09-23T00:00:00+00:00"),
         # Two blocks without a ref are not duplicates of each other.
         _event("", "task", "notion_t1", "Write", "2026-09-24T18:00:00-04:00", "2026-09-24T19:00:00-04:00"),
         _event("", "task", "notion_t1", "Write", "2026-09-25T18:00:00-04:00", "2026-09-25T19:00:00-04:00"),
         # The destination overlaps a fixed event, so its travel goes too.
-        _event("dest", "goal", "notion_g1", "Climb", "2026-09-21T11:00:00-04:00", "2026-09-21T13:00:00-04:00"),
-        _event("trip", "travel", "dest", "Travel to Climb", "2026-09-21T12:00:00-04:00", "2026-09-21T12:30:00-04:00"),
+        _event("dest", "goal", "notion_g1", "Swim", "2026-09-21T11:00:00-04:00", "2026-09-21T13:00:00-04:00"),
+        _event("trip", "travel", "dest", "Travel to Swim", "2026-09-21T12:00:00-04:00", "2026-09-21T12:30:00-04:00"),
     ]
     checked = optimizer.validate_proposals(events, payload, start, end, fixed)
     utc, write1, write2, dest, trip = checked

@@ -69,14 +69,14 @@ SCENARIO = {
     ],
     "goals": [
         {
-            "id": "notion_goal_rockclimb",
-            "goal": "Rockclimb",
+            "id": "notion_goal_swim",
+            "goal": "Swim",
             "frequency": "2x Week",
             "required_time_hr": 2.0,
             "days_of_week": ["Monday", "Wednesday"],
             "time_of_day_window": "Afterwork",
             "priority": "Medium",
-            "location": "Brooklyn Boulders",
+            "location": "City Pool",
         }
     ],
 }

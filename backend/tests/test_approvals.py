@@ -221,7 +221,7 @@ def test_preview_feed_has_every_pending_proposal_as_a_schedule_x_event():
     utc = dt.timezone.utc
     day_off = dt.date.fromisoformat(_at(10, "00:00")[:10])
     rows = _insert("r_plan", [
-        {"item_type": "goal", "item_id": "g", "title": "Climb", "start": start.astimezone(utc).isoformat(),
+        {"item_type": "goal", "item_id": "g", "title": "Swim", "start": start.astimezone(utc).isoformat(),
          "end": end.astimezone(utc).isoformat(), "rationale": "Mondays work best."},          # stored in UTC
         {"item_type": "free", "item_id": "", "title": "Day off", "start": day_off.isoformat(),
          "end": (day_off + dt.timedelta(days=1)).isoformat(), "all_day": True, "timezone": None},
@@ -231,14 +231,14 @@ def test_preview_feed_has_every_pending_proposal_as_a_schedule_x_event():
     db.promote_proposal(rows[2], dt.datetime.now(dt.timezone.utc).isoformat())
 
     preview = {e["title"]: e for e in main.events_preview()}
-    assert set(preview) == {"Climb", "Day off"}  # queued and already-approved rows are not previewed
-    climb = preview["Climb"]
-    assert climb["id"] == f"proposal_{rows[0]}" and climb["calendarId"] == "proposed"
-    assert climb["start"] == f"{start.isoformat()}[America/New_York]"  # normalized: offset agrees with the zone
-    assert climb["end"] == f"{end.isoformat()}[America/New_York]"
-    assert climb["description"] == "Mondays work best." and climb["people"] == []
-    assert climb["proposalId"] == rows[0] and climb["itemType"] == "goal"
-    assert climb["_options"]["additionalClasses"] == ["sx-proposal", "sx-proposal-goal"]
+    assert set(preview) == {"Swim", "Day off"}  # queued and already-approved rows are not previewed
+    swim = preview["Swim"]
+    assert swim["id"] == f"proposal_{rows[0]}" and swim["calendarId"] == "proposed"
+    assert swim["start"] == f"{start.isoformat()}[America/New_York]"  # normalized: offset agrees with the zone
+    assert swim["end"] == f"{end.isoformat()}[America/New_York]"
+    assert swim["description"] == "Mondays work best." and swim["people"] == []
+    assert swim["proposalId"] == rows[0] and swim["itemType"] == "goal"
+    assert swim["_options"]["additionalClasses"] == ["sx-proposal", "sx-proposal-goal"]
     assert (preview["Day off"]["start"], preview["Day off"]["end"]) == (day_off.isoformat(),) * 2  # inclusive end
 
 

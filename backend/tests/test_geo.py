@@ -99,4 +99,4 @@ def test_slot_where_tells_home_from_out():
     assert slot.where("Home", "") == "home"
     assert slot.where("https://zoom.us/j/1") == "home"
     assert slot.where("1 main st", "1 Main St") == "home"
-    assert slot.where("Brooklyn Boulders") == "out"
+    assert slot.where("City Pool") == "out"

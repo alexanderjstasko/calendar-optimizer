@@ -73,12 +73,12 @@ def _block(pid, start, minutes, item_type="goal", **extra):
 def live_shaped():
     """The dev DB's shape in miniature: a daily goal, a Mon & Wed goal with travel, one-offs, options."""
     rows = [_block(f"news{d}", _at(d, 8, 15), 30, item_id="g-news", title="Read the News") for d in range(12, 20)]
-    for n, d in enumerate((12, 14, 19, 21), start=1):  # Mondays and Wednesdays; travel ends as the climb starts
-        rows.append(_block(f"climb{d}", _at(d, 17, 30), 180, item_id="g-climb", title="Rockclimb", location="Gym"))
-        rows.append(_block(f"travel{d}", _at(d, 17), 30, "travel", item_id=f"r{n}", title="Travel to Rockclimb"))
+    for n, d in enumerate((12, 14, 19, 21), start=1):  # Mondays and Wednesdays; travel ends as the swim starts
+        rows.append(_block(f"swim{d}", _at(d, 17, 30), 180, item_id="g-swim", title="Swim", location="Gym"))
+        rows.append(_block(f"travel{d}", _at(d, 17), 30, "travel", item_id=f"r{n}", title="Travel to Swim"))
     return rows + [
         _block("laundry", _at(18, 11), 180, item_id="g-laundry", title="Laundry"),
-        _block("soccer", _at(18, 16, 50), 40, "travel", item_id="google_x", title="Travel to Soccer"),
+        _block("tennis", _at(18, 16, 50), 40, "travel", item_id="google_x", title="Travel to Tennis"),
         _block("octopus", _at(13, 19), 90, "event", item_id="d1", title="Scientific Controversies: Octopus Umwelt",
                location="Pioneer Works", cost="Free", url="https://example.com/octopus?a=1&b=2",
                rationale="Octopus perception is exactly the lecture the Learning goal asks for. Fit: Tuesday, 35 min."),
@@ -122,11 +122,11 @@ def test_plan_reads_as_series_lines_with_travel_folded_in(config):
     assert msg["Subject"] == "1 event option · 4 plan items (18 blocks) to review"
     text, body = _parts(msg)
     assert "  Read the News — daily 8:15 AM, 30 min — 8× Oct 12 – 19\n" in text
-    assert "  Rockclimb — Mon & Wed 5:30 PM, 3 h — 4× Oct 12 – 21 + travel\n" in text
-    assert "Travel to Rockclimb" not in text + body  # folded into its climb, not listed four more times
+    assert "  Swim — Mon & Wed 5:30 PM, 3 h — 4× Oct 12 – 21 + travel\n" in text
+    assert "Travel to Swim" not in text + body  # folded into its swim, not listed four more times
     one_offs = text[text.index("One-offs:"):]
     assert re.search(r"\n  Sun, Oct 18 +11 AM – 2 PM +Laundry\n", one_offs)
-    assert re.search(r"\n +4:50 – 5:30 PM +Travel to Soccer\n", one_offs)  # same day: no second date
+    assert re.search(r"\n +4:50 – 5:30 PM +Travel to Tennis\n", one_offs)  # same day: no second date
     assert (text.index("EVENT OPTIONS (1)") < text.index("YOUR PLAN (18 BLOCKS)") < text.index("Repeating:")
             < text.index("One-offs:") < text.index("Review plan:"))
     # The option card keeps the reason, not the scout's logistics.
@@ -207,7 +207,7 @@ def test_plan_still_listed_when_grouping_fails(config, monkeypatch, caplog, grou
     msg = notifier.build_message(live_shaped(), config=config, intro="hi", now=TUESDAY)
     text, _ = _parts(msg)
     assert "By day:" in text and "Repeating:" not in text
-    assert text.count("Read the News") == 8 and text.count("Travel to Rockclimb") == 4
+    assert text.count("Read the News") == 8 and text.count("Travel to Swim") == 4
     assert msg["Subject"] == "1 event option · 18 plan blocks to review"
     assert ("grouping failed" in caplog.text) is warns
 

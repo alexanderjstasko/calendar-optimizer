@@ -2,7 +2,7 @@
 review_model.py on plain dicts (no database): series grouping, the cadence
 copy, travel attachment (by ref and by the legacy heuristic) and the
 /review/summary document. The series below are shaped like the live plan of
-2026-10-08 (Read the News x24, Rockclimb x8 + travel, Shave x8, Free time x18).
+2026-10-08 (Read the News x24, Swim x8 + travel, Floss x8, Free time x18).
 """
 
 from __future__ import annotations
@@ -41,8 +41,8 @@ NEWS = ["10-12 08:15", "10-13 08:15", "10-14 08:00", "10-15 08:15", "10-16 08:15
         "10-19 08:15", "10-20 08:15", "10-21 08:15", "10-22 08:15", "10-23 08:15", "10-24 10:00", "10-25 10:00",
         "10-26 08:15", "10-27 08:15", "10-28 08:15", "10-29 08:15", "11-02 08:15", "11-03 08:15", "11-04 08:15",
         "11-05 08:15", "11-06 08:15", "11-07 10:00"]
-CLIMB_DAYS = ["10-12", "10-14", "10-19", "10-21", "10-26", "10-28", "11-02", "11-04"]  # Mon & Wed
-SHAVE = ["10-14 21:15", "10-17 10:30", "10-20 08:00", "10-23 08:00", "10-26 08:45", "10-29 08:00", "11-04 08:00",
+SWIM_DAYS = ["10-12", "10-14", "10-19", "10-21", "10-26", "10-28", "11-02", "11-04"]  # Mon & Wed
+FLOSS = ["10-14 21:15", "10-17 10:30", "10-20 08:00", "10-23 08:00", "10-26 08:45", "10-29 08:00", "11-04 08:00",
          "11-07 10:30"]
 FREE = [("10-09 18:00", 180), ("10-10 14:00", 180), ("10-13 18:00", 180), ("10-16 18:00", 180), ("10-17 14:00", 180),
         ("10-17 19:00", 60), ("10-23 17:00", 60), ("10-24 13:00", 180), ("10-24 19:00", 120), ("10-25 11:00", 120),
@@ -56,10 +56,10 @@ def _news():
 
 def _climbs(*, with_ref: bool):
     rows = []
-    for i, day in enumerate(CLIMB_DAYS, start=1):
+    for i, day in enumerate(SWIM_DAYS, start=1):
         ref = f"r{i}"
-        rows.append(_row("goal", "notion_climb", "Rockclimb", _at(day, "17:30"), 180, ref=ref if with_ref else None))
-        rows.append(_row("travel", ref, "Travel to Rockclimb", _at(day, "17:00"), 30, ref=f"t{i}" if with_ref else None))
+        rows.append(_row("goal", "notion_swim", "Swim", _at(day, "17:30"), 180, ref=ref if with_ref else None))
+        rows.append(_row("travel", ref, "Travel to Swim", _at(day, "17:00"), 30, ref=f"t{i}" if with_ref else None))
     return rows
 
 
@@ -87,36 +87,36 @@ def test_mon_wed_series_with_travel_attached(with_ref):
     rows = _climbs(with_ref=with_ref)
     series = rm.group_series(rows)
     assert len(series) == 1  # the eight travel blocks are not a series of their own
-    climb = series[0]
-    assert climb["cadence"] == "Mon & Wed" and climb["time"] == "17:30" and climb["duration_min"] == 180
-    assert climb["has_travel"] is True and climb["count"] == 8
-    assert climb["summary"] == "Mon & Wed 17:30 · 3 h · 8× · + travel"
-    for occ in climb["occurrences"]:
-        assert occ["travel"]["title"] == "Travel to Rockclimb"
+    swim = series[0]
+    assert swim["cadence"] == "Mon & Wed" and swim["time"] == "17:30" and swim["duration_min"] == 180
+    assert swim["has_travel"] is True and swim["count"] == 8
+    assert swim["summary"] == "Mon & Wed 17:30 · 3 h · 8× · + travel"
+    for occ in swim["occurrences"]:
+        assert occ["travel"]["title"] == "Travel to Swim"
         assert occ["travel"]["end"] == occ["start"]
 
 
 def test_travel_ref_wins_over_title_and_timing():
-    goal = _row("goal", "notion_climb", "Rockclimb", _at("10-12", "17:30"), 180, ref="p1")
+    goal = _row("goal", "notion_swim", "Swim", _at("10-12", "17:30"), 180, ref="p1")
     commute = _row("travel", "p1", "Commute", _at("10-12", "16:45"), 30)  # ends 17:15, other title
     [only] = rm.group_series([goal, commute])
     assert only["occurrences"][0]["travel"]["id"] == commute["id"]
 
 
 def test_travel_to_a_fixed_calendar_event_is_its_own_series():
-    rows = [_row("travel", "google_soccer1", "Travel to Soccer", _at("10-18", "16:50"), 40),
-            _row("travel", "google_soccer2", "Travel to Soccer", _at("10-25", "13:50"), 40),
-            _row("travel", "r9", "Travel to Rockclimb", _at("10-12", "17:00"), 30)]  # destination not in the list
+    rows = [_row("travel", "google_tennis1", "Travel to Tennis", _at("10-18", "16:50"), 40),
+            _row("travel", "google_tennis2", "Travel to Tennis", _at("10-25", "13:50"), 40),
+            _row("travel", "r9", "Travel to Swim", _at("10-12", "17:00"), 30)]  # destination not in the list
     by_title = _by_title(rm.group_series(rows))
-    assert by_title["Travel to Soccer"]["count"] == 2 and by_title["Travel to Soccer"]["key"] == "travel:travel to soccer"
-    assert by_title["Travel to Rockclimb"]["count"] == 1
+    assert by_title["Travel to Tennis"]["count"] == 2 and by_title["Travel to Tennis"]["key"] == "travel:travel to tennis"
+    assert by_title["Travel to Swim"]["count"] == 1
 
 
 def test_every_three_days_with_varying_times():
-    rows = [_row("goal", "notion_shave", "Shave", _at(*d.split()), 15) for d in SHAVE]
-    [shave] = rm.group_series(rows)
-    assert shave["cadence"] == "every 3 days" and shave["time"] == "varies"
-    assert shave["summary"] == "every 3 days · varies · 15 min · 8×"
+    rows = [_row("goal", "notion_floss", "Floss", _at(*d.split()), 15) for d in FLOSS]
+    [floss] = rm.group_series(rows)
+    assert floss["cadence"] == "every 3 days" and floss["time"] == "varies"
+    assert floss["summary"] == "every 3 days · varies · 15 min · 8×"
 
 
 def test_irregular_free_time_reads_as_a_weekly_rate():
@@ -128,16 +128,16 @@ def test_irregular_free_time_reads_as_a_weekly_rate():
 
 
 def test_whole_live_shaped_plan_groups_into_series_then_singles():
-    haircut = _row("goal", "notion_haircut", "Haircut", _at("10-24", "11:00"), 45)
+    repot = _row("goal", "notion_repot", "Repot", _at("10-24", "11:00"), 45)
     plants = [_row("goal", "notion_plants", "Water Plants", _at(d, "08:00"), 15) for d in ("10-19", "10-26")]
-    rows = _news() + _climbs(with_ref=False) + [haircut] + plants + \
-        [_row("goal", "notion_shave", "Shave", _at(*d.split()), 15) for d in SHAVE]
+    rows = _news() + _climbs(with_ref=False) + [repot] + plants + \
+        [_row("goal", "notion_floss", "Floss", _at(*d.split()), 15) for d in FLOSS]
     series = rm.group_series(rows)
     assert [(s["title"], s["count"]) for s in series] == [
-        ("Read the News", 24), ("Rockclimb", 8), ("Shave", 8), ("Water Plants", 2), ("Haircut", 1)]
+        ("Read the News", 24), ("Swim", 8), ("Floss", 8), ("Water Plants", 2), ("Repot", 1)]
     by_title = _by_title(series)
     assert by_title["Water Plants"]["summary"] == "Mondays 8:00 · 15 min · 2×"
-    assert by_title["Haircut"]["cadence"] == "once" and by_title["Haircut"]["summary"] == "Sat Oct 24 11:00 · 45 min"
+    assert by_title["Repot"]["cadence"] == "once" and by_title["Repot"]["summary"] == "Sat Oct 24 11:00 · 45 min"
 
 
 def test_partial_approval_counts_and_entity_titles():
@@ -146,8 +146,8 @@ def test_partial_approval_counts_and_entity_titles():
         r["status"] = "promoted"
     talk = _row("goal", "notion_sci", "Sci&shy;ence &amp; Art", _at("10-20", "18:30"), 120)
     by_key = {s["key"]: s for s in rm.group_series(rows + [talk])}
-    climb = by_key["goal:notion_climb"]
-    assert (climb["pending"], climb["approved"], climb["count"]) == (5, 3, 8)
+    swim = by_key["goal:notion_swim"]
+    assert (swim["pending"], swim["approved"], swim["count"]) == (5, 3, 8)
     assert by_key["goal:notion_sci"]["title"] == "Science & Art"
 
 

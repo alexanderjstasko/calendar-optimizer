@@ -3,14 +3,14 @@ Goal types and the routine expander.
 
 Every Goals row in Notion carries a "Type" select (since 2026-10-19):
 
-    Routine         expanded here, in code, with no model call: Shave, Laundry,
+    Routine         expanded here, in code, with no model call: Floss, Laundry,
                     Water Plants... Since 2026-10-26 the occurrences are
                     ordinary pending proposals (nothing is auto-approved any
                     more): they are placed inside the Sunday run and by the
                     hourly triggers (triggers.py), the planner treats them as
                     fixed while it plans, and the person approves them in the
                     Plan tab like everything else.
-    Flexible        sent to the optimizer exactly as before (Rockclimb, Money
+    Flexible        sent to the optimizer exactly as before (Swim, Money
                     Analysis...).
     Event Interest  only the scout reads them (quota and taste notes); the
                     optimizer never sees them, so it stops inventing blocks.

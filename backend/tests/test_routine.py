@@ -121,10 +121,10 @@ def test_find_slot_prefers_time_of_day_then_free_time_and_avoids_work_and_events
 
 
 def test_expand_proposes_routine_goals_as_pending_blocks_and_is_idempotent(monkeypatch):
-    shave = _goal("shave", "Shave", frequency="Once every 3 days", required_time_hr=0.25, last_occurred="2026-10-17")
+    floss = _goal("floss", "Floss", frequency="Once every 3 days", required_time_hr=0.25, last_occurred="2026-10-17")
     plants = _goal("plants", "Water Plants", frequency="1x Week", days_of_week='["Monday"]', time_of_day_window="Morning",
                    required_time_hr=0.25, last_occurred="2026-10-12")
-    _goal("climb", "Rockclimb", goal_type="Flexible", frequency="2x Week")      # not routine: untouched
+    _goal("swim", "Swim", goal_type="Flexible", frequency="2x Week")      # not routine: untouched
     _goal("culture", "Culture Event", goal_type="Event Interest", frequency="2x Month")
     _goal("odd", "Odd one", frequency="whenever you like")                       # unparsable
     _event("dinner", "2026-10-20T17:00:00-04:00", "2026-10-20T21:00:00-04:00")
@@ -132,10 +132,10 @@ def test_expand_proposes_routine_goals_as_pending_blocks_and_is_idempotent(monke
     summary = routine.expand(WS, WE, now=NOW)
     assert summary["goals"] == 3 and summary["unparsed"] == [{"goal": "Odd one", "frequency": "whenever you like"}]
     blocks = {(b["goal"], b["start"]) for b in summary["blocks"]}
-    # Shave every 3 days from the 17th: 20th (evening, after dinner), 23rd, 26th, 29th, Nov 1st.
-    shave_starts = sorted(b["start"] for b in summary["blocks"] if b["goal"] == "Shave")
-    assert [s[:10] for s in shave_starts] == ["2026-10-20", "2026-10-23", "2026-10-26", "2026-10-29", "2026-11-01"]
-    assert shave_starts[0] == "2026-10-20T21:00-04:00"  # dinner 17-21 pushed it to 21:00
+    # Floss every 3 days from the 17th: 20th (evening, after dinner), 23rd, 26th, 29th, Nov 1st.
+    floss_starts = sorted(b["start"] for b in summary["blocks"] if b["goal"] == "Floss")
+    assert [s[:10] for s in floss_starts] == ["2026-10-20", "2026-10-23", "2026-10-26", "2026-10-29", "2026-11-01"]
+    assert floss_starts[0] == "2026-10-20T21:00-04:00"  # dinner 17-21 pushed it to 21:00
     # Water Plants on Mondays: the 19th (the morning window is gone by 09:00 and work follows, so it lands in free time), 26th, Nov 2nd.
     plants_blocks = sorted((b["start"] for b in summary["blocks"] if b["goal"] == "Water Plants"))
     assert [s[:10] for s in plants_blocks] == ["2026-10-19", "2026-10-26", "2026-11-02"]
@@ -162,7 +162,7 @@ def test_expand_proposes_routine_goals_as_pending_blocks_and_is_idempotent(monke
 
 
 def test_rejecting_a_routine_block_leaves_the_day_empty_and_approving_one_puts_it_on_the_calendar():
-    _goal("shave", "Shave", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-18")
+    _goal("floss", "Floss", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-18")
     summary = routine.expand(WS, WE, now=NOW)
     assert summary["placed"] == 15  # Oct 19 .. Nov 2 (the window ends 09:00 on the 2nd; that block ends before it)
     assert max(b["end"] for b in summary["blocks"]) <= "2026-11-02T09:00"
@@ -179,11 +179,11 @@ def test_rejecting_a_routine_block_leaves_the_day_empty_and_approving_one_puts_i
 
 
 def test_expand_can_be_limited_to_one_goal_and_plan_around_extra_busy_blocks():
-    shave = _goal("shave", "Shave", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-18")
+    floss = _goal("floss", "Floss", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-18")
     _goal("plants", "Water Plants", frequency="1x Week", days_of_week='["Monday"]', required_time_hr=0.25, last_occurred="2026-10-12")
     busy = [(dt.datetime(2026, 10, 19, 17, 0, tzinfo=NY), dt.datetime(2026, 10, 19, 21, 0, tzinfo=NY))]
-    summary = routine.expand(WS, WE, now=NOW, only_goal_ids={shave}, busy_extra=busy, run_kind="trigger")
-    assert {b["goal"] for b in summary["blocks"]} == {"Shave"}
+    summary = routine.expand(WS, WE, now=NOW, only_goal_ids={floss}, busy_extra=busy, run_kind="trigger")
+    assert {b["goal"] for b in summary["blocks"]} == {"Floss"}
     assert next(b for b in summary["blocks"] if b["start"].startswith("2026-10-19"))["start"] == "2026-10-19T21:00-04:00"
     assert db.get_optimizer_runs(limit=1)[0]["kind"] == "trigger"
 
@@ -205,15 +205,15 @@ def test_expand_now_refreshes_goals_from_notion_first(monkeypatch):
 
 
 def test_planner_and_scout_see_only_their_goal_types(monkeypatch):
-    _goal("shave", "Shave", frequency="Daily", required_time_hr=0.25)
-    _goal("climb", "Rockclimb", goal_type="Flexible", frequency="2x Week")
+    _goal("floss", "Floss", frequency="Daily", required_time_hr=0.25)
+    _goal("swim", "Swim", goal_type="Flexible", frequency="2x Week")
     _goal("culture", "Culture Event", goal_type="Event Interest", frequency="2x Month")
     _goal("old", "Untyped", goal_type=None, frequency="1x Week")
-    _goal("ctx", "Learn slovak", goal_type="Flexible", show_on_calendar=0)
+    _goal("ctx", "Learn piano", goal_type="Flexible", show_on_calendar=0)
     monkeypatch.setenv("LLM_HOME_LOCATION", "Brooklyn")
     payload, _ = optimizer.build_payload(WS, WE)
-    assert [g["title"] for g in payload["goals"]] == ["Rockclimb", "Untyped", "Calendar Review", "Goals and Telos review"]
-    assert [g["title"] for g in payload["context_goals"]] == ["Learn slovak"]
+    assert [g["title"] for g in payload["goals"]] == ["Swim", "Untyped", "Calendar Review", "Goals and Telos review"]
+    assert [g["title"] for g in payload["context_goals"]] == ["Learn piano"]
     assert payload["goals"][0]["type"] == "flexible" and payload["goals"][1]["type"] == ""
     assert [g["title"] for g in optimizer.event_interest_goals()] == ["Culture Event", "Untyped"]
 
@@ -222,7 +222,7 @@ def test_run_optimizer_expands_routines_before_planning(monkeypatch):
     import json
     import llm_client
 
-    _goal("shave", "Shave", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-18")
+    _goal("floss", "Floss", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-18")
     monkeypatch.setattr(optimizer, "_refresh_notion", lambda: None)
     monkeypatch.setattr(optimizer.preferences, "refresh_learned", lambda **kw: {"refreshed": False})
     monkeypatch.setenv("LLM_BACKEND", "api")
@@ -238,8 +238,8 @@ def test_run_optimizer_expands_routines_before_planning(monkeypatch):
     summary = optimizer.run_optimizer(now=NOW, refresh_notion=False, horizon_days=14)
     assert summary["routine"]["placed"] == 15
     assert [g["title"] for g in captured["payload"]["goals"]] == ["Calendar Review", "Goals and Telos review"]  # the routine is not a goal to plan...
-    shave = [e for e in captured["payload"]["calendar"] if e["title"] == "Shave"]
-    assert len(shave) == 15 and shave[0]["source"].startswith("routine (proposed")  # ...it is a fixed entry to plan around
+    floss = [e for e in captured["payload"]["calendar"] if e["title"] == "Floss"]
+    assert len(floss) == 15 and floss[0]["source"].startswith("routine (proposed")  # ...it is a fixed entry to plan around
     assert len(db.get_proposals(run_id=summary["routine"]["run_id"], status="proposed")) == 15  # still pending afterwards
 
 

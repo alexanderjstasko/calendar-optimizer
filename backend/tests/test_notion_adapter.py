@@ -57,7 +57,7 @@ def test_context_goal_with_notes_is_imported():
 
 def test_checked_goal_with_empty_notes():
     page = _page({
-        "Goal": _title("Rockclimb"),
+        "Goal": _title("Swim"),
         "Frequency": _rich("2x Week"),
         "Required Time (hr)": {"type": "number", "number": 2},
         "Priority": _select("High"),
@@ -154,7 +154,7 @@ def test_update_number_property_refuses_missing_or_mistyped_property(monkeypatch
 
 def test_update_date_property_sends_only_that_property(monkeypatch):
     page = {"id": "pg", "properties": {
-        "Goal": _title("Haircut"),
+        "Goal": _title("Repot"),
         "Last Occurred": {"type": "date", "date": {"start": "2026-09-11", "end": None, "time_zone": None}},
     }}
     calls = {}

@@ -70,7 +70,7 @@ def test_options_lists_fitting_events_and_items_in_the_agreed_order():
     db.create_optimizer_run("run_x", "t", "api", "m", "a", "b")
     db.insert_proposals("run_x", [{"item_type": "task", "item_id": rec, "title": "Recommended task", "start": "2026-10-26T13:00:00-04:00",
                                    "end": "2026-10-26T14:00:00-04:00", "all_day": False, "timezone": DISPLAY_TIMEZONE, "status": "proposed"}], "t")
-    climb = _goal("climb", "Rockclimb", required_time_hr=2.0, days_of_week=json.dumps(["Saturday"]), time_of_day_window="Afternoon", priority="High")
+    swim = _goal("swim", "Swim", required_time_hr=2.0, days_of_week=json.dumps(["Saturday"]), time_of_day_window="Afternoon", priority="High")
     _goal("long", "Hike", required_time_hr=6.0)                                  # longer than the slot
     _goal("weekday", "Money", days_of_week=json.dumps(["Monday"]))              # wrong day
     _goal("morning", "Stretch", time_of_day_window="Morning")                   # wrong time of day
@@ -80,7 +80,7 @@ def test_options_lists_fitting_events_and_items_in_the_agreed_order():
     out = slot.options(*SLOT)
     assert [e["id"] for e in out["events"]] == ["e-rec", "e-jazz", "e-fit"]
     assert out["events"][1]["keyword_match"] is True and out["events"][0]["recommended"] is True
-    assert [i["id"] for i in out["items"]] == [rec, soon, high, climb]
+    assert [i["id"] for i in out["items"]] == [rec, soon, high, swim]
     assert out["items"][1]["duration_hr"] == 2.0 and out["items"][2]["duration_hr"] == 2.0
     assert out["items"][3]["kind"] == "goal" and out["items"][3]["duration_hr"] == 2.0
 

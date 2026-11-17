@@ -82,7 +82,7 @@ def _seed_task_and_goal():
         "location": None, "status": "Not started", "last_modified": "x",
     })
     db.upsert_goal({
-        "source": "notion", "source_goal_id": "g1", "goal": "Rockclimb", "frequency": "2x Week",
+        "source": "notion", "source_goal_id": "g1", "goal": "Swim", "frequency": "2x Week",
         "end_date": None, "required_time_hr": 2.0, "priority": "High", "location": None,
         "days_of_week": None, "time_of_day_window": "Afterwork", "status": "In progress", "last_modified": "x",
     })

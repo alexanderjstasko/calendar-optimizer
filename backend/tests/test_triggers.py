@@ -90,7 +90,7 @@ def _ev(ref, item_type, item_id, title, start, end, replaces=""):
 
 
 def test_new_routine_goal_is_placed_by_code_as_pending_blocks():
-    gid = _goal("shave", "Shave", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
+    gid = _goal("floss", "Floss", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
     out = triggers.place_item("goal", gid, reason="New in Notion", now=NOW)
     assert out["method"] == "code" and out["placed"] is True
     rows = db.get_proposals(run_id=out["run_id"])
@@ -102,8 +102,8 @@ def test_new_routine_goal_is_placed_by_code_as_pending_blocks():
 
 def test_new_flexible_item_is_placed_by_one_model_call_with_movable_blocks(monkeypatch):
     tid = _task("t1", "Renew passport")
-    gid = _goal("climb", "Rockclimb", priority="Low")
-    block = _approved_block("goal", gid, "Rockclimb", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
+    gid = _goal("swim", "Swim", priority="Low")
+    block = _approved_block("goal", gid, "Swim", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
     block_event = db.get_proposal(block)["promoted_event_id"]
     captured = {}
     _fake_model(monkeypatch, [_ev("n1", "task", tid, "Renew passport", "2026-10-22T13:00:00-04:00", "2026-10-22T15:00:00-04:00")], captured)
@@ -121,14 +121,14 @@ def test_new_flexible_item_is_placed_by_one_model_call_with_movable_blocks(monke
 
 def test_model_may_displace_a_lower_ranked_block_and_approval_applies_the_move(monkeypatch):
     tid = _task("t1", "Tax return", deadline="2026-10-22")
-    gid = _goal("climb", "Rockclimb", priority="Low")
-    block = _approved_block("goal", gid, "Rockclimb", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00",
+    gid = _goal("swim", "Swim", priority="Low")
+    block = _approved_block("goal", gid, "Swim", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00",
                             travel=("2026-10-21T17:30:00-04:00", "2026-10-21T18:00:00-04:00"))
     block_event = db.get_proposal(block)["promoted_event_id"]
     _fake_model(monkeypatch, [
         _ev("n1", "task", tid, "Tax return", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00"),
-        _ev("m1", "goal", gid, "Rockclimb", "2026-10-22T18:00:00-04:00", "2026-10-22T20:00:00-04:00", replaces=block_event),
-        _ev("bad", "goal", gid, "Rockclimb", "2026-10-23T18:00:00-04:00", "2026-10-23T20:00:00-04:00", replaces="optimizer_nope"),
+        _ev("m1", "goal", gid, "Swim", "2026-10-22T18:00:00-04:00", "2026-10-22T20:00:00-04:00", replaces=block_event),
+        _ev("bad", "goal", gid, "Swim", "2026-10-23T18:00:00-04:00", "2026-10-23T20:00:00-04:00", replaces="optimizer_nope"),
     ])
     out = triggers.place_item("task", tid, reason="New in Notion", now=NOW)
     rows = {r["ref"]: r for r in db.get_proposals(run_id=out["run_id"])}
@@ -146,7 +146,7 @@ def test_model_may_displace_a_lower_ranked_block_and_approval_applies_the_move(m
     assert old["status"] == "superseded" and old["replaced_by"] == rows["m1"]["id"]
     assert db.get_proposal(f"{block}"[:-1] + "2")["status"] == "superseded"  # the travel went with it
     shown = db.get_schedule_x_events(calendar_id="optimizer")
-    assert [e["title"] for e in shown] == ["Rockclimb"] and shown[0]["start"].startswith("2026-10-22T18:00")
+    assert [e["title"] for e in shown] == ["Swim"] and shown[0]["start"].startswith("2026-10-22T18:00")
     assert json.loads(db.get_goals()[0]["scheduled_event_ids"]) == [f"optimizer_{rows['m1']['id']}"]
 
 
@@ -170,13 +170,13 @@ def test_notion_check_places_new_rows_and_removes_deleted_ones(monkeypatch):
 
     def fake_sync():
         db.soft_delete_goal("notion", "old", "2026-10-20T14:00:00+00:00")
-        _goal("shave", "Shave", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
+        _goal("floss", "Floss", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
 
     monkeypatch.setattr(sync_notion, "sync_notion", fake_sync)
     sent = {}
     monkeypatch.setattr(notifier, "notify_changes", lambda **kw: sent.setdefault("called", True) and {"count": 0, "sent": False})
     out = triggers.notion_check(now=NOW)
-    assert out["new"] == [{"item_type": "goal", "item_id": "notion_shave"}]
+    assert out["new"] == [{"item_type": "goal", "item_id": "notion_floss"}]
     assert out["deleted"][0]["item_id"] == gid and out["deleted"][0]["approved"] == [block] and out["deleted"][0]["pending"] == [f"{pending_run}_1"]
     assert db.get_proposal(block)["status"] == "superseded" and db.get_schedule_x_events(calendar_id="optimizer") == []
     assert out["placements"][0]["placed"] is True and sent["called"] is True
@@ -202,13 +202,13 @@ def test_notion_check_first_sync_and_sync_failure_do_nothing(monkeypatch):
 
 
 def test_conflict_check_flags_a_clash_and_proposes_a_move_once(monkeypatch):
-    gid = _goal("shave", "Shave", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
-    block = _approved_block("goal", gid, "Shave", "2026-10-21T18:00:00-04:00", "2026-10-21T18:15:00-04:00")
+    gid = _goal("floss", "Floss", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
+    block = _approved_block("goal", gid, "Floss", "2026-10-21T18:00:00-04:00", "2026-10-21T18:15:00-04:00")
     block_event = db.get_proposal(block)["promoted_event_id"]
     assert triggers.conflict_check(now=NOW)["conflicts"] == []
     dentist = _fixed("dentist", "2026-10-21T17:30:00-04:00", "2026-10-21T19:00:00-04:00", "Dentist")
     out = triggers.conflict_check(now=NOW)
-    assert out["conflicts"] == [{"proposal_id": block, "title": "Shave", "with": "Dentist", "item_type": "goal", "new": True}]
+    assert out["conflicts"] == [{"proposal_id": block, "title": "Floss", "with": "Dentist", "item_type": "goal", "new": True}]
     assert db.get_proposal(block)["conflict_event_id"] == dentist
     move = db.get_proposals(status="proposed")[0]
     assert move["replaces_event_id"] == block_event and move["rationale"].startswith("Moved from Wed 6 PM: Dentist landed on it.")
@@ -231,13 +231,13 @@ def test_conflict_check_flags_a_clash_and_proposes_a_move_once(monkeypatch):
 
 
 def test_conflict_on_a_flexible_block_asks_the_model_with_block_to_move(monkeypatch):
-    gid = _goal("climb", "Rockclimb")
-    block = _approved_block("goal", gid, "Rockclimb", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
+    gid = _goal("swim", "Swim")
+    block = _approved_block("goal", gid, "Swim", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
     block_event = db.get_proposal(block)["promoted_event_id"]
     _fixed("dinner", "2026-10-21T19:00:00-04:00", "2026-10-21T21:00:00-04:00", "Dinner")
     captured = {}
     # The model forgets replaces_event_id: the trigger fills it in, since the clash is the whole point.
-    _fake_model(monkeypatch, [_ev("m", "goal", gid, "Rockclimb", "2026-10-22T18:00:00-04:00", "2026-10-22T20:00:00-04:00")], captured)
+    _fake_model(monkeypatch, [_ev("m", "goal", gid, "Swim", "2026-10-22T18:00:00-04:00", "2026-10-22T20:00:00-04:00")], captured)
     out = triggers.conflict_check(now=NOW)
     assert captured["payload"]["block_to_move"]["event_id"] == block_event
     assert captured["payload"]["goals"][0]["already_scheduled_event_ids"] == []
@@ -248,8 +248,8 @@ def test_conflict_on_a_flexible_block_asks_the_model_with_block_to_move(monkeypa
 
 
 def test_conflicts_ignore_all_day_entries_and_only_flag_public_events():
-    gid = _goal("climb", "Rockclimb")
-    _approved_block("goal", gid, "Rockclimb", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
+    gid = _goal("swim", "Swim")
+    _approved_block("goal", gid, "Swim", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
     db.upsert_event({"source": "apple", "source_event_id": "trip", "calendar_id": "apple_default", "title": "Trip",
                      "start": "2026-10-21", "end": "2026-10-22", "all_day": True, "timezone": None, "last_modified": "x"})
     assert triggers.conflict_check(now=NOW)["conflicts"] == []
@@ -269,7 +269,7 @@ def test_conflicts_ignore_all_day_entries_and_only_flag_public_events():
 
 
 def test_change_email_lists_each_trigger_proposal_once(monkeypatch):
-    gid = _goal("shave", "Shave", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
+    gid = _goal("floss", "Floss", goal_type="Routine", frequency="Daily", required_time_hr=0.25, last_occurred="2026-10-19")
     out = triggers.place_item("goal", gid, reason="New in Notion", now=NOW)
     monkeypatch.setenv("NOTIFY_EMAIL_TO", "me@example.com")
     monkeypatch.setenv("NOTIFY_SMTP_USER", "me@example.com")
@@ -296,12 +296,12 @@ def test_plan_subject_uses_the_window_dates():
 
 
 def test_retire_open_plan_clears_the_calendar_but_keeps_the_decisions():
-    gid = _goal("climb", "Rockclimb")
-    past = _approved_block("goal", gid, "Rockclimb", "2026-10-13T18:00:00-04:00", "2026-10-13T20:00:00-04:00", ref="a", run_id="run_a")
-    ahead = _approved_block("goal", gid, "Rockclimb", "2026-10-22T18:00:00-04:00", "2026-10-22T20:00:00-04:00", ref="b", run_id="run_b")
+    gid = _goal("swim", "Swim")
+    past = _approved_block("goal", gid, "Swim", "2026-10-13T18:00:00-04:00", "2026-10-13T20:00:00-04:00", ref="a", run_id="run_a")
+    ahead = _approved_block("goal", gid, "Swim", "2026-10-22T18:00:00-04:00", "2026-10-22T20:00:00-04:00", ref="b", run_id="run_b")
     db.create_optimizer_run("run_c", "t", "api", "m", "a", "b")
-    db.insert_proposals("run_c", [_ev("c", "goal", gid, "Rockclimb", "2026-10-23T18:00:00-04:00", "2026-10-23T19:00:00-04:00"),
-                                  _ev("d", "goal", gid, "Rockclimb", "2026-10-24T18:00:00-04:00", "2026-10-24T19:00:00-04:00")], "t")
+    db.insert_proposals("run_c", [_ev("c", "goal", gid, "Swim", "2026-10-23T18:00:00-04:00", "2026-10-23T19:00:00-04:00"),
+                                  _ev("d", "goal", gid, "Swim", "2026-10-24T18:00:00-04:00", "2026-10-24T19:00:00-04:00")], "t")
     db.reject_proposal("run_c_1", "t")
     assert db.count_decisions() == 3
     out = db.retire_open_plan(NOW)
@@ -319,8 +319,8 @@ def test_retire_open_plan_clears_the_calendar_but_keeps_the_decisions():
 def test_conflict_check_asks_the_model_once_per_clash(monkeypatch):
     # On the Pi (2026-10-29) a clash whose moves kept failing validation cost a
     # model call every 5 minutes; now one attempt per clash.
-    gid = _goal("climb", "Rockclimb")
-    _approved_block("goal", gid, "Rockclimb", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
+    gid = _goal("swim", "Swim")
+    _approved_block("goal", gid, "Swim", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
     _fixed("dinner", "2026-10-21T19:00:00-04:00", "2026-10-21T21:00:00-04:00", "Dinner")
     calls = []
     def nothing_fits(system, user, schema, **kw):

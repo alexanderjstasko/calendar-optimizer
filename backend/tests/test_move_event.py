@@ -53,7 +53,7 @@ def test_move_updates_event_and_proposal_and_keeps_the_first_original_times():
 
 def test_move_refuses_synced_events_bad_times_and_unknown_ids():
     db.upsert_event({
-        "source": "google", "source_event_id": "g1", "calendar_id": "google_primary", "title": "Soccer",
+        "source": "google", "source_event_id": "g1", "calendar_id": "google_primary", "title": "Tennis",
         "start": "2026-10-18T17:30:00-04:00", "end": "2026-10-18T18:30:00-04:00", "all_day": False,
         "timezone": db.DISPLAY_TZ, "status": "confirmed",
     })
@@ -108,10 +108,10 @@ def test_delete_takes_the_block_off_and_records_a_rejection():
 def test_delete_takes_attached_travel_with_it():
     db.create_optimizer_run("r1", NOW, "api", "m", "a", "b")
     dest, travel = db.insert_proposals("r1", [
-        {"item_type": "goal", "item_id": "", "title": "Rockclimb", "description": "", "location": "Gym",
+        {"item_type": "goal", "item_id": "", "title": "Swim", "description": "", "location": "Gym",
          "start": "2026-10-18T18:00:00-04:00", "end": "2026-10-18T21:00:00-04:00", "all_day": False,
-         "timezone": db.DISPLAY_TZ, "rationale": "", "status": "proposed", "ref": "climb"},
-        {"item_type": "travel", "item_id": "climb", "title": "Travel to Rockclimb", "description": "", "location": "",
+         "timezone": db.DISPLAY_TZ, "rationale": "", "status": "proposed", "ref": "swim"},
+        {"item_type": "travel", "item_id": "swim", "title": "Travel to Swim", "description": "", "location": "",
          "start": "2026-10-18T17:30:00-04:00", "end": "2026-10-18T18:00:00-04:00", "all_day": False,
          "timezone": db.DISPLAY_TZ, "rationale": "", "status": "proposed", "ref": "t1"},
     ], NOW)
@@ -125,7 +125,7 @@ def test_delete_takes_attached_travel_with_it():
 
 def test_delete_refuses_synced_and_settled_blocks():
     db.upsert_event({
-        "source": "google", "source_event_id": "g1", "calendar_id": "google_primary", "title": "Soccer",
+        "source": "google", "source_event_id": "g1", "calendar_id": "google_primary", "title": "Tennis",
         "start": "2026-10-18T17:30:00-04:00", "end": "2026-10-18T18:30:00-04:00", "all_day": False,
         "timezone": db.DISPLAY_TZ, "status": "confirmed",
     })
