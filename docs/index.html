@@ -113,6 +113,23 @@
   tr:last-child td { border-bottom: 0; }
   th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
 
+  figure { margin: 0; }
+  .shot {
+    display: block; width: 100%; height: auto; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface);
+    box-shadow: 0 12px 32px rgba(20, 22, 50, 0.10);
+  }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  figcaption strong { color: var(--text); }
+  .hero-shot { margin-top: 40px; }
+  .gallery { display: grid; gap: 28px; }
+  .gallery .pair { display: grid; gap: 28px; grid-template-columns: 1fr 1fr; }
+  .gallery .with-phone { display: grid; gap: 28px; grid-template-columns: 2.6fr 1fr; align-items: start; }
+  @media (max-width: 720px) {
+    .gallery .pair, .gallery .with-phone { grid-template-columns: 1fr; }
+    .gallery .with-phone .phone { max-width: 300px; }
+  }
+
   footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); margin-top: 24px; }
 
   @media (max-width: 560px) {
@@ -144,6 +161,11 @@
       <a class="btn primary" href="#setup">Set it up</a>
       <a class="btn" href="https://github.com/alexanderjstasko/calendar-optimizer">View on GitHub</a>
     </div>
+    <figure class="hero-shot">
+      <img class="shot" src="screenshots/calendar-week.png" width="1600" height="1000"
+        alt="Week view: synced events in blue, approved plan blocks in green, proposed blocks and event suggestions dashed, with Work, Free and Sleep bands">
+      <figcaption>The week with the plan preview on: your calendars in blue, approved blocks in green, proposals dashed until you approve them. Demo data.</figcaption>
+    </figure>
   </section>
 
   <section id="features">
@@ -168,6 +190,37 @@
       <li><strong>Review</strong><span>Proposals appear in the Plan tab and in a preview on the calendar. Approve, move or reject them.</span></li>
       <li><strong>Track</strong><span>After an approved block has passed, the app writes the time spent and the last session back to Notion.</span></li>
     </ol>
+  </section>
+
+  <section id="screens">
+    <h2>A look around</h2>
+    <p class="sub">Four tabs, the same on a laptop and on your phone. Every screenshot uses made-up demo data.</p>
+    <div class="gallery">
+      <div class="with-phone">
+        <figure>
+          <img class="shot" src="screenshots/plan.png" width="1600" height="1000" loading="lazy"
+            alt="Plan tab: recurring blocks grouped into series with one toggle each, one-off blocks below, and an Approve plan button">
+          <figcaption><strong>Plan.</strong> Recurring blocks come as one series with one switch; open it to move or skip a single day.</figcaption>
+        </figure>
+        <figure class="phone">
+          <img class="shot" src="screenshots/phone-day.png" width="780" height="1688" loading="lazy"
+            alt="Phone day view with synced events, an approved writing block and dashed proposals">
+          <figcaption><strong>On your phone.</strong> Day view, with tabs at the bottom.</figcaption>
+        </figure>
+      </div>
+      <div class="pair">
+        <figure>
+          <img class="shot" src="screenshots/events.png" width="1600" height="1000" loading="lazy"
+            alt="Events tab: suggested talks, films and quizzes with venue, price and a toggle to add each">
+          <figcaption><strong>Events.</strong> Suggestions that fit your free evenings; switch one on to add it.</figcaption>
+        </figure>
+        <figure>
+          <img class="shot" src="screenshots/hours.png" width="1600" height="1000" loading="lazy"
+            alt="Hours tab: home, weekday sleep and work hours with office days, weekend sleep, and planning settings">
+          <figcaption><strong>Hours.</strong> Sleep, work, office days and how much free time to protect.</figcaption>
+        </figure>
+      </div>
+    </div>
   </section>
 
   <section id="setup">
