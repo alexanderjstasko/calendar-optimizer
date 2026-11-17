@@ -11,8 +11,9 @@
 //     page as the offline fallback.
 //   API reads the app makes (API_PATHS): network-first; every good response
 //     is saved (stamped X-SW-Cached-At). Offline, or when the network takes
-//     longer than NETWORK_TIMEOUT_MS and a copy exists, the copy is served
-//     with that stamp, which src/offline.js turns into the "Offline" banner.
+//     longer than NETWORK_TIMEOUT_MS or answers 5xx and a copy exists, the
+//     copy is served with that stamp, which src/offline.js turns into the
+//     "Offline" banner (a late answer is still saved).
 //     With no copy, a 503 marked X-SW-Offline comes back instead of hanging.
 //   POST requests are never touched: a decision either reaches the server
 //   or fails visibly in the app; nothing is queued.
@@ -54,7 +55,7 @@ self.addEventListener('fetch', (event) => {
   } else if (PRECACHE.includes(url.pathname)) {
     event.respondWith(cacheFirst(request))
   } else if (API_PATHS.includes(url.pathname)) {
-    event.respondWith(networkFirstData(request))
+    event.respondWith(networkFirstData(request, event))
   }
 })
 
@@ -67,30 +68,41 @@ async function cacheFirst(request) {
 }
 
 // Every navigation is the one page (routes live in the hash), so the saved
-// copy of "/" answers any of them offline.
+// copy of "/" answers any of them offline, and also when the server answers
+// with an error (uvicorn restarting behind `tailscale serve` gives a 502).
 async function networkFirstPage(request) {
+  const saved = () => caches.match('/', { cacheName: STATIC_CACHE })
   try {
     const response = await fetch(new Request(request, { cache: 'no-cache' }))
     if (response.ok) (await caches.open(STATIC_CACHE)).put('/', response.clone())
+    else if (response.status >= 500) return (await saved()) || response
     return response
   } catch (err) {
-    const cached = await caches.match('/', { cacheName: STATIC_CACHE })
+    const cached = await saved()
     if (cached) return cached
     throw err
   }
 }
 
-async function networkFirstData(request) {
+async function networkFirstData(request, event) {
   const cache = await caches.open(DATA_CACHE)
   const cached = await cache.match(request)
-  try {
-    const response = await (cached ? withTimeout(fetch(request), NETWORK_TIMEOUT_MS) : fetch(request))
+  // Every good answer is saved, also one that arrives after the timeout has
+  // already served the copy (waitUntil keeps the worker alive for it).
+  const live = fetch(request).then(async (response) => {
     if (response.ok) {
       const headers = new Headers(response.headers)
       headers.set(CACHED_AT, new Date().toISOString())
       const body = await response.clone().arrayBuffer()
       await cache.put(request, new Response(body, { status: response.status, statusText: response.statusText, headers }))
     }
+    return response
+  })
+  if (cached) event.waitUntil(live.catch(() => {}))
+  try {
+    const response = await (cached ? withTimeout(live, NETWORK_TIMEOUT_MS) : live)
+    // A server error (e.g. 502 while uvicorn restarts) is no better than offline.
+    if (response.status >= 500 && cached) return cached
     return response
   } catch {
     if (cached) return cached

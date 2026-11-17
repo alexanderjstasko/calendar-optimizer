@@ -165,11 +165,11 @@ export function ReloadIcon() {
 }
 
 /** First load: soft placeholder cards instead of a spinner. Error: a retry card. */
-export function LoadState({ error, onRetry, rows = 4 }) {
+export function LoadState({ error, onRetry, rows = 4, what = 'the review' }) {
   if (error) {
     return (
       <div class="rv-card rv-error" role="alert">
-        <p>Couldn't load the review: {error}</p>
+        <p>Couldn't load {what}: {error}</p>
         <button type="button" class="rv-btn rv-btn-secondary" onClick={onRetry}>
           Try again
         </button>

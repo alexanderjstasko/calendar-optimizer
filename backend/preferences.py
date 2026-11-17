@@ -182,6 +182,15 @@ def person_context(recent: int = 25) -> dict[str, Any]:
     }
 
 
+def refresh_learned_safely() -> dict[str, Any]:
+    """refresh_learned() for the start of a plan or scout run: any failure is logged, never raised."""
+    try:
+        return refresh_learned()
+    except Exception as exc:  # noqa: BLE001 -- a bad setting or a disk error must not stop the run
+        logger.warning("preferences: learned-note refresh failed: %s", exc)
+        return {"refreshed": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
 def refresh_learned(*, force: bool = False) -> dict[str, Any]:
     """
     Rewrite the learned note when enough new decisions exist (or force=True).
@@ -190,7 +199,11 @@ def refresh_learned(*, force: bool = False) -> dict[str, Any]:
     """
     total = db.count_decisions()
     seen = int(db.get_setting(SETTING_SEEN, "0") or 0)
-    threshold = int((os.environ.get("LLM_LEARN_EVERY_DECISIONS") or DEFAULT_LEARN_EVERY))
+    try:
+        threshold = int(os.environ.get("LLM_LEARN_EVERY_DECISIONS") or DEFAULT_LEARN_EVERY)
+    except ValueError:
+        logger.warning("LLM_LEARN_EVERY_DECISIONS is not a number; using %s", DEFAULT_LEARN_EVERY)
+        threshold = int(DEFAULT_LEARN_EVERY)
     new = total - seen
     if not force and (new < threshold or total == 0):
         return {"refreshed": False, "new_decisions": new, "threshold": threshold}

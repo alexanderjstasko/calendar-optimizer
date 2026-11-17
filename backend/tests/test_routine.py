@@ -241,3 +241,16 @@ def test_run_optimizer_expands_routines_before_planning(monkeypatch):
     shave = [e for e in captured["payload"]["calendar"] if e["title"] == "Shave"]
     assert len(shave) == 15 and shave[0]["source"].startswith("routine (proposed")  # ...it is a fixed entry to plan around
     assert len(db.get_proposals(run_id=summary["routine"]["run_id"], status="proposed")) == 15  # still pending afterwards
+
+
+def test_due_dates_keep_the_days_before_a_later_block():
+    # A daily routine with one block already on Friday: Monday to Thursday are still due.
+    first, last = dt.date(2026, 11, 16), dt.date(2026, 11, 22)
+    goal = {"last_occurred": "2026-11-15", "days_of_week": None}
+    taken = {dt.date(2026, 11, 20)}
+    assert routine.due_dates(goal, 1, first, last, taken) == [
+        dt.date(2026, 11, 16), dt.date(2026, 11, 17), dt.date(2026, 11, 18), dt.date(2026, 11, 19),
+        dt.date(2026, 11, 21), dt.date(2026, 11, 22)]
+    # A block in the past (before the window) still anchors the stepping.
+    weekly = {"last_occurred": "2026-10-01", "days_of_week": None}
+    assert routine.due_dates(weekly, 7, first, last, {dt.date(2026, 11, 12)}) == [dt.date(2026, 11, 19)]

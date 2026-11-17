@@ -27,7 +27,7 @@ from typing import Literal
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -82,7 +82,7 @@ def optimizer_run_job() -> None:
 
     try:
         summary = optimizer.run_optimizer()
-    except llm_client.LLMError as exc:
+    except (llm_client.LLMError, optimizer.RunInProgress) as exc:
         logger.error("scheduled optimizer run failed: %s", exc)
         return
     logger.info("scheduled optimizer run: %s proposed, %s invalid", summary.get("proposed"), summary.get("invalid"))
@@ -292,12 +292,15 @@ def _utc_now() -> str:
 
 
 @app.post("/optimizer/run")
-def optimizer_run(horizon_days: int | None = None, dry_run: bool = False, refresh_notion: bool = True) -> dict:
+def optimizer_run(horizon_days: int | None = Query(None, ge=1, le=60), dry_run: bool = False,
+                  refresh_notion: bool = True) -> dict:
     """Run one optimizer pass; dry_run=true only builds the payload and counts tokens."""
     import optimizer  # lazy: pulls in the Notion adapter, which needs NOTION_* set
 
     try:
         summary = optimizer.run_optimizer(horizon_days=horizon_days, dry_run=dry_run, refresh_notion=refresh_notion)
+    except optimizer.RunInProgress as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except llm_client.LLMError as exc:
         raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}")
     notifier.notify_run(summary, "optimizer")
@@ -305,7 +308,7 @@ def optimizer_run(horizon_days: int | None = None, dry_run: bool = False, refres
 
 
 @app.get("/optimizer/runs")
-def optimizer_runs(limit: int = 20) -> list[dict]:
+def optimizer_runs(limit: int = Query(20, ge=1, le=200)) -> list[dict]:
     return db.get_optimizer_runs(limit=limit)
 
 
@@ -442,11 +445,12 @@ def _approve(proposal: dict, now_iso: str) -> dict:
     """
     if proposal["status"] not in ("proposed", "approved"):
         raise Undecidable(f"proposal is already {proposal['status']}")
-    replaced = db.replace_block(proposal["replaces_event_id"], now_iso, proposal["id"]) if proposal.get("replaces_event_id") else []
     event_id = db.promote_proposal(proposal["id"], now_iso)
     if event_id is None:
         current = db.get_proposal(proposal["id"]) or proposal
         raise Undecidable(f"proposal is already {current['status']}")
+    # Only once the move itself is on the calendar does the old block leave it.
+    replaced = db.replace_block(proposal["replaces_event_id"], now_iso, proposal["id"]) if proposal.get("replaces_event_id") else []
     out = {"proposal_id": proposal["id"], "status": "promoted", "event_id": event_id, "superseded_overlaps": [],
            "replaced": replaced}
     if proposal["item_type"] == "event":
@@ -469,6 +473,8 @@ def _revoke(proposal: dict, now_iso: str) -> dict:
     event_id = db.revoke_proposal(proposal["id"], now_iso)
     if event_id is None:
         current = db.get_proposal(proposal["id"]) or proposal
+        if current.get("settled_at"):
+            raise Undecidable("this block has already been logged to Notion, so it stays")
         raise Undecidable(f"proposal is {current['status']}, not promoted")
     # A routine block comes back as 'rejected' (see db.revoke_proposal), anything else as 'proposed'.
     after = db.get_proposal(proposal["id"]) or {}

@@ -160,8 +160,9 @@ def fetch_and_sync() -> None:
 
     removed_ids = active_ids_in_window - current_ids
     now = datetime.now(timezone.utc).isoformat()
-    for source_event_id in removed_ids:
-        db.soft_delete_event(SOURCE, source_event_id, now)
+    with db.batch():  # one commit for all removals
+        for source_event_id in removed_ids:
+            db.soft_delete_event(SOURCE, source_event_id, now)
 
     if events:
         db.upsert_events(events)

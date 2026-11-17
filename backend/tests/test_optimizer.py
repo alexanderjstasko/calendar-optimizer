@@ -640,3 +640,25 @@ def test_upsert_events_writes_a_batch_in_one_transaction(monkeypatch):
     with pytest.raises(Exception):
         db.upsert_events(batch)
     assert {e["title"] for e in db.get_events(calendar_id="partiful")} == {f"Party {i}" for i in range(25)}
+
+
+def test_validation_normalizes_offsets_ignores_empty_refs_and_drops_orphaned_travel():
+    _seed()
+    start, end = optimizer.plan_window(NOW, HORIZON)
+    payload, fixed = optimizer.build_payload(start, end)
+    events = [
+        # Written in UTC: stored with New York's offset, so the calendar can draw it.
+        _event("utc", "goal", "notion_g1", "Climb", "2026-09-22T22:00:00+00:00", "2026-09-23T00:00:00+00:00"),
+        # Two blocks without a ref are not duplicates of each other.
+        _event("", "task", "notion_t1", "Write", "2026-09-24T18:00:00-04:00", "2026-09-24T19:00:00-04:00"),
+        _event("", "task", "notion_t1", "Write", "2026-09-25T18:00:00-04:00", "2026-09-25T19:00:00-04:00"),
+        # The destination overlaps a fixed event, so its travel goes too.
+        _event("dest", "goal", "notion_g1", "Climb", "2026-09-21T11:00:00-04:00", "2026-09-21T13:00:00-04:00"),
+        _event("trip", "travel", "dest", "Travel to Climb", "2026-09-21T12:00:00-04:00", "2026-09-21T12:30:00-04:00"),
+    ]
+    checked = optimizer.validate_proposals(events, payload, start, end, fixed)
+    utc, write1, write2, dest, trip = checked
+    assert utc["status"] == "proposed" and utc["start"] == "2026-09-22T18:00:00-04:00" and utc["end"] == "2026-09-22T20:00:00-04:00"
+    assert write1["status"] == write2["status"] == "proposed", (write1["invalid_reason"], write2["invalid_reason"])
+    assert dest["status"] == "invalid"
+    assert trip["status"] == "invalid" and "held back" in trip["invalid_reason"]

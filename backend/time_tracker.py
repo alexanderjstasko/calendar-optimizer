@@ -44,6 +44,7 @@ import datetime as dt
 import json
 import logging
 import sys
+import threading
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -62,6 +63,11 @@ UPCOMING_EVENT_PROP = notion_adapter.UPCOMING_EVENT_PROP
 NODE_LEVELS = notion_adapter.LEVEL_TREE  # a goals row at one of these levels is a Goal/Project planned as sessions
 
 
+# Two passes at once (the 15-minute job and POST /tasks/settle-time) would both
+# read the same unsettled blocks and both add their hours.
+_SETTLE_LOCK = threading.Lock()
+
+
 def _hours_between(start: dt.datetime, end: dt.datetime) -> float:
     return round((end - start).total_seconds() / 3600.0, 2)
 
@@ -69,6 +75,27 @@ def _hours_between(start: dt.datetime, end: dt.datetime) -> float:
 def _time_spent_prop(page_id: str) -> str:
     """Which name the page uses for its hours ("Time Spent" since 2026-10-26, "Time Spent (hr)" before)."""
     return notion_adapter.resolve_property_name(page_id, TIME_SPENT_PROPS, "number")
+
+
+def _add_once(proposal_id: str, key: str, page_id: str, prop_name: str, delta: float, *, whole: bool = False) -> tuple[Any, float]:
+    """
+    Add `delta` to a Notion number property exactly once for this block, even
+    across retries: the value about to be written is recorded on the proposal
+    first, so when a pass fails after Notion took the write (a timeout on the
+    reply, a locked database before the block was marked settled), the next
+    pass finds that value already there and adds nothing. Returns (before,
+    after); raises when Notion does not confirm the write.
+    """
+    current = notion_adapter.read_number_property(page_id, prop_name)
+    target = db.get_settle_target(proposal_id, key)
+    if target is not None and current is not None and abs(float(current) - float(target)) < 1e-6:
+        return None, float(current)  # an earlier pass's write landed
+    new_value = int((current or 0) + delta) if whole else round((current or 0.0) + delta, 2)
+    db.set_settle_target(proposal_id, key, new_value)
+    written = notion_adapter.update_number_property(page_id, prop_name, new_value)
+    if written is None or abs(float(written) - new_value) > 1e-6:
+        raise RuntimeError(f"Notion reports {written!r} after writing {new_value} to {prop_name}")
+    return current, new_value
 
 
 def _bump_sessions(page_id: str, goal_id: str, entry: dict[str, Any], dry_run: bool) -> None:
@@ -104,9 +131,15 @@ def settle_task_time(now: dt.datetime | None = None, dry_run: bool = False) -> d
     now = now or dt.datetime.now(DISPLAY_TZ)
     now_iso = now.astimezone(dt.timezone.utc).isoformat()
     summary: dict[str, Any] = {"dry_run": dry_run, "checked": 0, "settled": [], "pending": 0, "skipped": [], "errors": []}
-    _settle_tasks(now, now_iso, dry_run, summary)
-    _settle_goals(now, now_iso, dry_run, summary)
-    _settle_events(now, now_iso, dry_run, summary)
+    if not _SETTLE_LOCK.acquire(blocking=False):
+        summary["busy"] = "another settlement pass is running; nothing done"
+        return summary
+    try:
+        _settle_tasks(now, now_iso, dry_run, summary)
+        _settle_goals(now, now_iso, dry_run, summary)
+        _settle_events(now, now_iso, dry_run, summary)
+    finally:
+        _SETTLE_LOCK.release()
     return summary
 
 
@@ -149,15 +182,13 @@ def _settle_tasks(now: dt.datetime, now_iso: str, dry_run: bool, summary: dict[s
         page_id = p["source_task_id"]
         try:
             prop_name = _time_spent_prop(page_id)
-            current = notion_adapter.read_number_property(page_id, prop_name)
-            new_value = round((current or 0.0) + hours, 2)
-            entry = {**label, "hours": hours, "notion_before": current, "notion_after": new_value, "property": prop_name}
             if dry_run:
-                summary["settled"].append(entry)
+                current = notion_adapter.read_number_property(page_id, prop_name)
+                summary["settled"].append({**label, "hours": hours, "notion_before": current,
+                                           "notion_after": round((current or 0.0) + hours, 2), "property": prop_name})
                 continue
-            written = notion_adapter.update_number_property(page_id, prop_name, new_value)
-            if written is None or abs(float(written) - new_value) > 1e-6:
-                raise RuntimeError(f"Notion reports {written!r} after writing {new_value}")
+            current, new_value = _add_once(p["id"], "time_spent", page_id, prop_name, hours)
+            entry = {**label, "hours": hours, "notion_before": current, "notion_after": new_value, "property": prop_name}
             if not db.mark_proposal_settled(p["id"], now_iso, hours):
                 # Someone settled it concurrently; the Notion write already happened, so say so loudly.
                 logger.error("proposal %s was settled concurrently; Notion may now double count %s h", p["id"], hours)
@@ -217,7 +248,7 @@ def _settle_goals(now: dt.datetime, now_iso: str, dry_run: bool, summary: dict[s
             if logs_hours:
                 # Raises on failure: the block stays unsettled and the pass is retried. Last
                 # Occurred never moves backwards, so redoing it then is harmless.
-                _log_goal_hours(page_id, p["item_id"], hours, entry, dry_run)
+                _log_goal_hours(p["id"], page_id, p["item_id"], hours, entry, dry_run)
             if not dry_run:
                 if not db.mark_proposal_settled(p["id"], now_iso, hours):
                     logger.error("proposal %s was settled concurrently after writing %s", p["id"], LAST_OCCURRED_PROP)
@@ -231,17 +262,16 @@ def _settle_goals(now: dt.datetime, now_iso: str, dry_run: bool, summary: dict[s
             summary["errors"].append({**label, "error": f"{type(exc).__name__}: {exc}"})
 
 
-def _log_goal_hours(page_id: str, goal_id: str, hours: float, entry: dict[str, Any], dry_run: bool) -> None:
-    """Add a session's hours to a Goal/Project page's Time Spent (read fresh, written, verified)."""
+def _log_goal_hours(proposal_id: str, page_id: str, goal_id: str, hours: float, entry: dict[str, Any], dry_run: bool) -> None:
+    """Add a session's hours to a Goal/Project page's Time Spent (once per block, verified)."""
     prop_name = _time_spent_prop(page_id)
-    current = notion_adapter.read_number_property(page_id, prop_name)
-    new_value = round((current or 0.0) + hours, 2)
-    entry.update(hours=hours, time_spent_before=current, time_spent_after=new_value, time_spent_property=prop_name)
     if dry_run:
+        current = notion_adapter.read_number_property(page_id, prop_name)
+        entry.update(hours=hours, time_spent_before=current, time_spent_after=round((current or 0.0) + hours, 2),
+                     time_spent_property=prop_name)
         return
-    written = notion_adapter.update_number_property(page_id, prop_name, new_value)
-    if written is None or abs(float(written) - new_value) > 1e-6:
-        raise RuntimeError(f"Notion reports {written!r} after writing {new_value} to {prop_name}")
+    current, new_value = _add_once(proposal_id, "time_spent", page_id, prop_name, hours)
+    entry.update(hours=hours, time_spent_before=current, time_spent_after=new_value, time_spent_property=prop_name)
     db.set_goal_time_spent(goal_id, new_value)
 
 
@@ -283,16 +313,16 @@ def _settle_events(now: dt.datetime, now_iso: str, dry_run: bool, summary: dict[
         try:
             if p.get("website_source") == "notion" and p.get("source_website_id"):
                 page_id = p["source_website_id"]
-                current = notion_adapter.read_number_property(page_id, EVENTS_ATTENDED_PROP)
-                new_count = int((current or 0) + 1)
-                entry.update(attended_before=current, attended_after=new_count)
                 upcoming = notion_adapter.read_text_property(page_id, UPCOMING_EVENT_PROP)
                 clear_upcoming = bool(upcoming) and p["title"] in upcoming
                 entry["clears_upcoming"] = clear_upcoming
-                if not dry_run:
-                    written = notion_adapter.update_number_property(page_id, EVENTS_ATTENDED_PROP, new_count)
-                    if written is None or int(written) != new_count:
-                        raise RuntimeError(f"Notion reports {written!r} after writing {new_count}")
+                if dry_run:
+                    current = notion_adapter.read_number_property(page_id, EVENTS_ATTENDED_PROP)
+                    entry.update(attended_before=current, attended_after=int((current or 0) + 1))
+                else:
+                    current, new_count = _add_once(p["id"], "events_attended", page_id, EVENTS_ATTENDED_PROP, 1, whole=True)
+                    new_count = int(new_count)
+                    entry.update(attended_before=current, attended_after=new_count)
                     if clear_upcoming:
                         notion_adapter.update_text_property(page_id, UPCOMING_EVENT_PROP, "")
                     db.set_website_notion_mirror(p["website_id"], events_attended=new_count,

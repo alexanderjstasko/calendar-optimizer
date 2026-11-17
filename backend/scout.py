@@ -390,8 +390,8 @@ def validate_recommendations(recs: list[dict], candidates: list[dict], fixed: li
                     reason = "end is not after start"
                 elif start < window_start or start >= window_end:
                     reason = "outside the window"
-                elif start.strftime("%Y-%m-%d") != cand["start"][:10]:
-                    reason = f"date {start:%Y-%m-%d} differs from the candidate's {cand['start'][:10]}"
+                elif start.astimezone(NY).strftime("%Y-%m-%d") != cand["start"][:10]:
+                    reason = f"date {start.astimezone(NY):%Y-%m-%d} differs from the candidate's {cand['start'][:10]}"
                 elif r.get("goal_id") and r["goal_id"] not in goal_ids:
                     reason = f"unknown goal id {r['goal_id']!r}"
                 elif hours.too_soon_after_work(start, free_hours, TRAVEL_BUFFER):
@@ -462,7 +462,7 @@ def scout_recommend(*, now: dt.datetime | None = None, dry_run: bool = False, wi
                        "set LLM_SCOUT_SHORTLIST (or drop an old LLM_SCOUT_MAX_RECOMMENDATIONS) to change that",
                        shortlist_size(), page_size())
     if not dry_run:
-        preferences.refresh_learned()  # digest new decisions first; never fatal
+        preferences.refresh_learned_safely()  # digest new decisions first; never fatal
     payload, fixed, candidates = build_scout_payload(now, window_days, exclude_recent_days)
     window_start, window_end = _candidate_window(now, window_days)
     system = optimizer.load_prompt_file(scout_prompt_path(), SCOUT_TOOL_NAME, "LLM_SCOUT_PROMPT_PATH")

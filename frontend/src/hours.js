@@ -84,7 +84,6 @@ export function validateHours(hours) {
 
 export const label = (profile) => (profile === 'weekends' ? 'Weekends' : 'Weekdays')
 
-export const sameHours = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 /** '23:00' -> '11 PM', '08:15' -> '8:15 AM', '24:00' -> 'midnight'. */
 export function clock12(hhmm) {

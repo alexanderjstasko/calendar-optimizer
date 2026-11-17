@@ -18,10 +18,6 @@ function set(next) {
   listeners.forEach((fn) => fn(state))
 }
 
-export function offlineState() {
-  return state
-}
-
 /** Record what a GET response was; returns true when it is the worker's "offline, no copy" answer. */
 export function noteResponse(response) {
   if (response.headers.get('X-SW-Offline')) {

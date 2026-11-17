@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { createApi } from './review/api.js'
 import { Toast } from './review/ui.jsx'
 import {
@@ -101,10 +101,8 @@ export function HoursTab({ apiUrl, hours, saved, savedAt, onSaved }) {
 
   // A fresh copy from the server (a save on another device) is shown as long
   // as no row is being edited here.
-  const lastServer = useRef(hours)
   useEffect(() => {
     if (editing === null) setDraft(base)
-    lastServer.current = hours
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hours])
 
@@ -127,7 +125,7 @@ export function HoursTab({ apiUrl, hours, saved, savedAt, onSaved }) {
 
   const patchProfile = (profile, patch) => setDraft((d) => ({ ...d, [profile]: { ...d[profile], ...patch } }))
   const patchWork = (patch) =>
-    setDraft((d) => ({ ...d, weekdays: { ...d.weekdays, work: { ...(d.weekdays.work || NEW_WORK), ...DEFAULT_ROW, ...patch } } }))
+    setDraft((d) => ({ ...d, weekdays: { ...d.weekdays, work: { ...DEFAULT_ROW, ...(d.weekdays.work || NEW_WORK), ...patch } } }))
 
   async function save() {
     const next = editing === 'keywords' ? { ...draft, event_keywords: parseKeywords(keywordText) } : draft

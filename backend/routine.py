@@ -140,11 +140,23 @@ def _snap(day: dt.date, pool: set[int]) -> dt.date:
     return day
 
 
+def _mark_busy(busy_by_day: dict[dt.date, list[tuple[dt.datetime, dt.datetime]]], s: dt.datetime, e: dt.datetime) -> None:
+    """File a busy interval under every day it touches (a timed trip from Friday to Sunday blocks Saturday too)."""
+    day = s.date()
+    while True:
+        busy_by_day.setdefault(day, []).append((s, e))
+        day += dt.timedelta(days=1)
+        if dt.datetime.combine(day, dt.time(0, 0), tzinfo=NY) >= e:
+            break
+
+
 def due_dates(goal: dict, interval: float, window_start: dt.date, window_end: dt.date, taken: set[dt.date]) -> list[dt.date]:
     """
     Dates the goal is due inside [window_start, window_end], stepping by the
-    interval from the latest known occurrence (Last Occurred or a block already
-    in `taken`), snapped forward to the Day of Week pool, skipping taken dates.
+    interval from Last Occurred, snapped forward to the Day of Week pool. A
+    block already in `taken` (placed or rejected) stands in for the due date
+    it is nearest to (within half an interval) and the stepping continues from
+    it, so a block later in the week never swallows the due dates before it.
     """
     pool = _pool(goal)
     anchor: dt.date | None = None
@@ -154,19 +166,23 @@ def due_dates(goal: dict, interval: float, window_start: dt.date, window_end: dt
             anchor = dt.date.fromisoformat(last)
         except ValueError:
             anchor = None
-    if taken:
-        latest = max(taken)
-        anchor = latest if anchor is None or latest > anchor else anchor
     if anchor is None:
-        anchor = window_start - dt.timedelta(days=round(interval))  # first one is due now
+        before = [t for t in taken if t < window_start]
+        anchor = max(before) if before else window_start - dt.timedelta(days=round(interval))  # first one is due now
+    half = dt.timedelta(days=interval / 2)
     out: list[dt.date] = []
-    for k in range(1, 400):
+    k = 1
+    for _ in range(400):
         due = _snap(anchor + dt.timedelta(days=round(interval * k)), pool)
         if due > window_end:
             break
-        if due < window_start or due in taken or due in out:
+        nearby = [t for t in taken if anchor < t and t - due < half]
+        if nearby:
+            anchor, k = max(nearby), 1  # that block is this occurrence
             continue
-        out.append(due)
+        if due >= window_start and due not in out:
+            out.append(due)
+        k += 1
     return out
 
 
@@ -268,8 +284,7 @@ def expand(window_start: dt.datetime, window_end: dt.datetime, *, now: dt.dateti
     for ev in db.get_events_between(ws - dt.timedelta(days=1), we + dt.timedelta(days=PLACEMENT_SLACK_DAYS + 1)):
         if ev["all_day"]:
             continue
-        s, e = ev["start_dt"].astimezone(NY), ev["end_dt"].astimezone(NY)
-        busy_by_day.setdefault(s.date(), []).append((s, e))
+        _mark_busy(busy_by_day, ev["start_dt"].astimezone(NY), ev["end_dt"].astimezone(NY))
     for s, e in busy_extra or []:
         s, e = s.astimezone(NY), e.astimezone(NY)
         busy_by_day.setdefault(s.date(), []).append((s, e))

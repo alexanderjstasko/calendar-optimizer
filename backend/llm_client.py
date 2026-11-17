@@ -532,7 +532,7 @@ def _run_cli_quick(cmd: list[str], *, allow_failure: bool = False, timeout_s: fl
             text=True,
             timeout=timeout_s,
         )
-    except FileNotFoundError as e:
+    except OSError as e:  # missing binary, no permission, argument list too long
         raise LLMBackendUnavailable(f"Could not execute {cmd[0]!r}: {e}") from e
     except subprocess.TimeoutExpired as e:
         raise LLMBackendUnavailable(f"{' '.join(cmd[:3])} timed out after {timeout_s}s") from e
@@ -608,7 +608,7 @@ def _cli_complete(
                 text=True,
                 timeout=timeout_s,
             )
-        except FileNotFoundError as e:
+        except OSError as e:  # missing binary, no permission, argument list too long
             raise LLMBackendUnavailable(f"Could not execute {cli!r}: {e}") from e
         except subprocess.TimeoutExpired as e:
             raise LLMBackendUnavailable(f"claude CLI timed out after {timeout_s}s") from e

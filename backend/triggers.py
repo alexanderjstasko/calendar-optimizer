@@ -129,8 +129,7 @@ def _routine_move(block: dict, goal: dict, window_end: dt.datetime, now: dt.date
     for ev in db.get_events_between(now, window_end + dt.timedelta(days=1)):
         if ev["all_day"] or ev["id"] == block["promoted_event_id"]:
             continue
-        s, e = ev["start_dt"].astimezone(NY), ev["end_dt"].astimezone(NY)
-        busy_by_day.setdefault(s.date(), []).append((s, e))
+        routine._mark_busy(busy_by_day, ev["start_dt"].astimezone(NY), ev["end_dt"].astimezone(NY))
     for p in db.get_proposals(status="proposed"):
         if p["item_type"] in ("event",) or p.get("all_day"):
             continue
@@ -222,7 +221,11 @@ def _movable_blocks(window_start: dt.datetime, window_end: dt.datetime, items_by
 def _model_place(item: dict, window_start: dt.datetime, window_end: dt.datetime, now: dt.datetime, reason: str,
                  block: dict | None, dry_run: bool) -> dict[str, Any]:
     """Place one flexible goal or task (or move its clashing block) with one small model call."""
-    payload, fixed = optimizer.build_payload(window_start, window_end)
+    # Pending plan blocks count as taken, as in the routine paths: approving
+    # both the plan and this placement must never double-book (event options
+    # are alternatives, not plans, so they don't count).
+    pending = [p for p in db.get_proposals(status="proposed") if p["item_type"] != "event" and not p.get("all_day")]
+    payload, fixed = optimizer.build_payload(window_start, window_end, pending_fixed=pending)
     item_type = item["type"]
     if item_type == "task":
         entry = next((t for t in payload["tasks"] if t["id"] == item["id"]), None)
@@ -393,9 +396,7 @@ def _overlaps(a_start: dt.datetime, a_end: dt.datetime, b_start: dt.datetime, b_
 
 def _has_open_move(event_id: str, since: str | None) -> bool:
     """A pending move for the block, or one the person rejected since the clash was found (= keep it)."""
-    for p in db.get_proposals():
-        if p.get("replaces_event_id") != event_id:
-            continue
+    for p in db.get_moves_for(event_id):
         if p["status"] == "proposed":
             return True
         if p["status"] == "rejected" and since and (p.get("created_at") or "") >= since:
@@ -418,12 +419,12 @@ def conflict_check(*, now: dt.datetime | None = None, dry_run: bool = False) -> 
     for b in blocks:
         if b.get("ref"):
             by_ref[(b["run_id"], b["ref"])] = b
+    fixed.sort(key=lambda e: e["start_dt"])
     for b in blocks:
         if b.get("event_all_day"):
             continue
         summary["checked"] += 1
-        clash = next((e for e in sorted(fixed, key=lambda e: e["start_dt"])
-                      if _overlaps(b["start_dt"], b["end_dt"], e["start_dt"], e["end_dt"])), None)
+        clash = next((e for e in fixed if _overlaps(b["start_dt"], b["end_dt"], e["start_dt"], e["end_dt"])), None)
         if clash is None:
             if b.get("conflict_event_id") and not dry_run:
                 db.set_conflict(b["id"], None, None)
@@ -432,8 +433,9 @@ def conflict_check(*, now: dt.datetime | None = None, dry_run: bool = False) -> 
             continue
         title = clash.get("title") or clash["id"]
         same = b.get("conflict_event_id") == clash["id"]
+        found_at = b.get("conflict_found_at") if same else _utc_iso()  # when this clash began
         if not same and not dry_run:
-            db.set_conflict(b["id"], clash["id"], _utc_iso())
+            db.set_conflict(b["id"], clash["id"], found_at)
         summary["conflicts"].append({"proposal_id": b["id"], "title": b.get("event_title") or b.get("title"),
                                      "with": title, "item_type": b["item_type"], "new": not same})
         # Which block gets re-placed: a travel block's destination, else the block itself.
@@ -444,11 +446,17 @@ def conflict_check(*, now: dt.datetime | None = None, dry_run: bool = False) -> 
                 continue
         if target["item_type"] not in ("goal", "task") or target["item_id"] in optimizer.BUILTIN_IDS:
             continue
-        if _has_open_move(target["promoted_event_id"], target.get("conflict_found_at")):
+        if _has_open_move(target["promoted_event_id"], found_at):
+            continue
+        # One attempt per clash: when the model found no valid move (or failed),
+        # asking again every 5 minutes would only spend tokens; Sunday's plan or
+        # a change in the clash takes it up again.
+        if found_at and (target.get("move_attempted_at") or "") >= found_at:
             continue
         if dry_run:
             summary["proposed"].append({"proposal_id": target["id"], "would": "propose a move"})
             continue
+        db.set_move_attempted(target["id"], _utc_iso())
         try:
             summary["proposed"].append(place_item(target["item_type"], target["item_id"], reason=f"{title} landed on it",
                                                   block=target, now=now))

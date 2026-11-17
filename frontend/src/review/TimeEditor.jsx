@@ -1,11 +1,14 @@
 import { useState } from 'preact/hooks'
-import { minutesBetween, zonedParts } from './format.js'
+import { zonedParts } from './format.js'
 
 const toMinutes = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
 }
 const fromMinutes = (total) => `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+// An end of 00:00 is midnight at the end of the day (a block may end exactly then).
+const endMinutes = (hhmm) => (hhmm === '00:00' ? 24 * 60 : toMinutes(hhmm))
+const nextDay = (ymd) => new Date(Date.parse(`${ymd}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
 
 /**
  * The pencil's one-line editor: date, start, end, then Approve / Cancel.
@@ -20,17 +23,17 @@ export function TimeEditor({ p, busy, onSubmit, onCancel, submitLabel = 'Approve
   const [error, setError] = useState('')
 
   function changeStart(value) {
-    const length = minutesBetween(start, end)
+    const length = endMinutes(end) - toMinutes(start)
     setStart(value)
-    if (value && length > 0 && toMinutes(value) + length < 24 * 60) setEnd(fromMinutes(toMinutes(value) + length))
+    if (value && length > 0 && toMinutes(value) + length <= 24 * 60) setEnd(fromMinutes((toMinutes(value) + length) % (24 * 60)))
     setError('')
   }
 
   function submit(event) {
     event.preventDefault()
     if (!date || !start || !end) return setError('Pick a date, a start and an end.')
-    if (minutesBetween(start, end) <= 0) return setError('The end has to be after the start.')
-    onSubmit({ start: `${date}T${start}:00`, end: `${date}T${end}:00` })
+    if (endMinutes(end) - toMinutes(start) <= 0) return setError('The end has to be after the start.')
+    onSubmit({ start: `${date}T${start}:00`, end: `${end === '00:00' ? nextDay(date) : date}T${end}:00` })
   }
 
   return (

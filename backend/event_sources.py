@@ -207,7 +207,7 @@ def events_from_jsonld(blobs: list[str], site: str, page_url: str) -> list[dict]
             return
         if "@graph" in obj:
             visit(obj["@graph"])
-        if "Event" in typ and obj.get("name"):
+        if "Event" in typ and isinstance(obj.get("name"), str) and obj["name"].strip():
             loc = obj.get("location")
             if isinstance(loc, dict):
                 addr = loc.get("address")
@@ -225,7 +225,7 @@ def events_from_jsonld(blobs: list[str], site: str, page_url: str) -> list[dict]
                 p = offers.get("price")
                 price = "Free" if p in (0, "0", "0.00") else (f"{p} {offers.get('priceCurrency', '')}".strip() if p not in (None, "") else "")
             ev = normalize(site, obj.get("name", ""), to_local_iso(obj.get("startDate")), to_local_iso(obj.get("endDate")),
-                           location=location, url=obj.get("url") or page_url, cost=price, summary=obj.get("description") or "")
+                           location=location, url=obj["url"] if isinstance(obj.get("url"), str) and obj["url"] else page_url, cost=price, summary=obj.get("description") or "")
             if ev:
                 found.append(ev)
 

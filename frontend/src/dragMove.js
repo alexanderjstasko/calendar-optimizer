@@ -53,11 +53,8 @@ function zoned(value, tz) {
 // What POST /events/{id}/move takes: naive New York wall time.
 const naive = (zdt) => `${zdt.toPlainDateTime().toString({ smallestUnit: 'minute' })}:00`
 
-function snap(zdt) {
-  const minutes = zdt.hour * 60 + zdt.minute
-  const snapped = Math.round(minutes / SNAP_MIN) * SNAP_MIN
-  return zdt.with({ hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0, nanosecond: 0 }).add({ minutes: snapped })
-}
+// Rounds the wall-clock time, so a drop on a DST-change day lands where it was dropped.
+const snap = (zdt) => zdt.round({ smallestUnit: 'minute', roundingIncrement: SNAP_MIN })
 
 const clock = (zdt) => zdt.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })
 

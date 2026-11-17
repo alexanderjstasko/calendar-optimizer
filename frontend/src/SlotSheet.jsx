@@ -67,6 +67,7 @@ export function SlotSheet({ apiUrl, slot, onClose, onPlaced }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(null) // the id being booked
   const [note, setNote] = useState('')
+  const [attempt, setAttempt] = useState(0) // bumped by Try again to refetch
   // Filters, kept between taps: where it happens and what kind of thing it is.
   const [where, setWhere] = useState(() => remembered('where', ['any', 'home', 'out'], 'any'))
   const [kind, setKind] = useState(() => remembered('kind', ['all', 'event', 'goal', 'task'], 'all'))
@@ -85,7 +86,7 @@ export function SlotSheet({ apiUrl, slot, onClose, onPlaced }) {
     return () => {
       cancelled = true
     }
-  }, [api, slot.start, slot.end])
+  }, [api, slot.start, slot.end, attempt])
 
   async function book(pick, start, end) {
     setBusy(pick.id)
@@ -148,7 +149,7 @@ export function SlotSheet({ apiUrl, slot, onClose, onPlaced }) {
             {kinds.length > 2 && <Segmented label="Type" value={kind} onChange={pickKind} options={kinds} />}
           </div>
         )}
-        {!data && <LoadState error={error} onRetry={() => setData(null)} rows={3} />}
+        {!data && <LoadState error={error} what="the options" onRetry={() => setAttempt((n) => n + 1)} rows={3} />}
         {nothing && <p class="rv-hint slot-sheet-empty">Nothing in the pool fits this slot. Enjoy the free time.</p>}
         {filteredOut && <p class="rv-hint slot-sheet-empty">Nothing matches these filters.</p>}
 

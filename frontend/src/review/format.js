@@ -146,15 +146,6 @@ export function zonedParts(value) {
   return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${get('hour')}:${get('minute')}` }
 }
 
-/** Minutes between two HH:MM strings on the same day. */
-export function minutesBetween(startHHMM, endHHMM) {
-  const toMin = (s) => {
-    const [h, m] = s.split(':').map(Number)
-    return h * 60 + m
-  }
-  return toMin(endHHMM) - toMin(startHHMM)
-}
-
 /** "0:45", "6:02" for live counters. */
 export function formatElapsed(ms) {
   const seconds = Math.max(0, Math.floor(ms / 1000))

@@ -317,3 +317,28 @@ def test_goal_dry_run_and_cancelled_and_failure(monkeypatch):
     assert [s["proposal_id"] for s in ok["settled"]] == [done]
     assert fake.date_writes == [(GOAL_PAGE, "Last Occurred", "2026-09-21")] * 2  # the failed attempt, then the retry
 
+
+
+def test_a_write_that_landed_is_not_added_again_on_retry(notion, monkeypatch):
+    # Notion took the write, then the pass failed before the block was marked
+    # settled (a reply timeout, a locked database): the retry must not add twice.
+    notion.values[PAGE] = 1.0
+    _seed_task_and_goal()
+    (pid,) = _run_with([_proposal("task", TASK_ID, "2026-09-22T17:00:00-04:00", "2026-09-22T19:00:00-04:00")])
+    real_mark = db.mark_proposal_settled
+    monkeypatch.setattr(db, "mark_proposal_settled", lambda *a: (_ for _ in ()).throw(RuntimeError("database is locked")))
+    first = time_tracker.settle_task_time(now=NOW)
+    assert first["errors"] and notion.values[PAGE] == 3.0
+    monkeypatch.setattr(db, "mark_proposal_settled", real_mark)
+    retry = time_tracker.settle_task_time(now=NOW)
+    assert [s["proposal_id"] for s in retry["settled"]] == [pid]
+    assert notion.values[PAGE] == 3.0 and len(notion.writes) == 1
+    assert db.get_proposal(pid)["settled_at"] is not None
+
+
+def test_only_one_settle_pass_runs_at_a_time(notion):
+    time_tracker._SETTLE_LOCK.acquire()
+    try:
+        assert "busy" in time_tracker.settle_task_time(now=NOW)
+    finally:
+        time_tracker._SETTLE_LOCK.release()

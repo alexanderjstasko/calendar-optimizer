@@ -314,3 +314,25 @@ def test_retire_open_plan_clears_the_calendar_but_keeps_the_decisions():
     assert json.loads(db.get_goals()[0]["scheduled_event_ids"]) == [f"optimizer_{past}"]
     # The review tabs no longer list the retired block.
     assert all(p["id"] != ahead for p in db.get_open_proposals(NOW))
+
+
+def test_conflict_check_asks_the_model_once_per_clash(monkeypatch):
+    # On the Pi (2026-10-29) a clash whose moves kept failing validation cost a
+    # model call every 5 minutes; now one attempt per clash.
+    gid = _goal("climb", "Rockclimb")
+    _approved_block("goal", gid, "Rockclimb", "2026-10-21T18:00:00-04:00", "2026-10-21T20:00:00-04:00")
+    _fixed("dinner", "2026-10-21T19:00:00-04:00", "2026-10-21T21:00:00-04:00", "Dinner")
+    calls = []
+    def nothing_fits(system, user, schema, **kw):
+        calls.append(1)
+        return llm_client.LLMResult(data={"events": [], "unscheduled": [], "notes": "no room"}, backend="api",
+                                    model="claude-opus-5", usage={}, cost_usd=0.0)
+    monkeypatch.setattr(llm_client, "complete_structured", nothing_fits)
+    triggers.conflict_check(now=NOW)
+    triggers.conflict_check(now=NOW)
+    assert len(calls) == 1
+    # A different event landing on the block is a new clash: one more attempt.
+    db.soft_delete_event("google", "dinner", "2026-10-20T15:00:00+00:00")
+    _fixed("drinks", "2026-10-21T18:30:00-04:00", "2026-10-21T19:30:00-04:00", "Drinks")
+    triggers.conflict_check(now=NOW)
+    assert len(calls) == 2

@@ -313,6 +313,8 @@ def in_range(t: dt.time, rng: dict[str, str] | None) -> bool:
         return False
     m = t.hour * 60 + t.minute
     s, e = minutes(rng["start"]), minutes(rng["end"])
+    if s == e:
+        return False  # empty (work ends at bedtime), not the whole day
     return s <= m < e if s < e else m >= s or m < e
 
 

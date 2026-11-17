@@ -126,6 +126,9 @@ def parse_days(raw: str) -> tuple[bool, str | None]:
             a, b = (x.strip() for x in part.split("-", 1))
             if a not in DAY_NAMES or b not in DAY_NAMES:
                 raise ValueError(f"unknown day range {part!r}; use names like mon-fri")
+            i, j = DAY_NAMES.index(a), DAY_NAMES.index(b)
+            if i > j:  # a range across the weekend (fri-mon): APScheduler wants it spelled out
+                part = ",".join(DAY_NAMES[i:] + DAY_NAMES[: j + 1])
         elif part not in DAY_NAMES:
             raise ValueError(f"unknown day {part!r}; use mon..sun, a range like mon-fri, daily, or off")
         parts.append(part)

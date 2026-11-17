@@ -178,8 +178,9 @@ def fetch_and_sync() -> None:
     if active:
         db.upsert_events(active)
 
-    for event_id in cancelled_ids:
-        db.soft_delete_event(SOURCE, event_id, now)
+    with db.batch():  # one commit for all removals
+        for event_id in cancelled_ids:
+            db.soft_delete_event(SOURCE, event_id, now)
 
     if next_sync_token:
         db.set_sync_token(INTERNAL_CALENDAR_ID, SOURCE, next_sync_token, now)

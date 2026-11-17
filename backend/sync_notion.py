@@ -59,8 +59,8 @@ def _titled(rows: list[dict], title_key: str, kind: str) -> list[dict]:
     return kept
 
 
-def _apply_tasks(fetched: list[dict]) -> tuple[int, int]:
-    fetched_ids = {t["source_task_id"] for t in fetched}
+def _apply_tasks(fetched: list[dict], keep: set[str] = frozenset()) -> tuple[int, int]:
+    fetched_ids = {t["source_task_id"] for t in fetched} | keep
     tasks = _titled(fetched, "task", "tasks")
     active_ids = db.get_active_source_task_ids("notion")
     db.upsert_tasks(tasks)
@@ -69,8 +69,8 @@ def _apply_tasks(fetched: list[dict]) -> tuple[int, int]:
     return len(tasks), deleted
 
 
-def _apply_goals(fetched: list[dict]) -> tuple[int, int]:
-    fetched_ids = {g["source_goal_id"] for g in fetched}
+def _apply_goals(fetched: list[dict], keep: set[str] = frozenset()) -> tuple[int, int]:
+    fetched_ids = {g["source_goal_id"] for g in fetched} | keep
     goals = _titled(fetched, "goal", "goals")
     active_ids = db.get_active_source_goal_ids("notion")
     db.upsert_goals(goals)
@@ -79,8 +79,8 @@ def _apply_goals(fetched: list[dict]) -> tuple[int, int]:
     return len(goals), deleted
 
 
-def _apply_nodes(fetched: list[dict]) -> tuple[int, int]:
-    fetched_ids = {n["source_node_id"] for n in fetched}
+def _apply_nodes(fetched: list[dict], keep: set[str] = frozenset()) -> tuple[int, int]:
+    fetched_ids = {n["source_node_id"] for n in fetched} | keep
     nodes = _titled(fetched, "title", "tree nodes")
     active_ids = db.get_active_source_node_ids("notion")
     db.upsert_tree_nodes(nodes)
@@ -100,12 +100,21 @@ def sync_goals() -> None:
 def sync_notion() -> dict[str, int]:
     """Entry point: one fetch of the tree database, all three tables updated and diffed."""
     tree = notion_adapter.fetch_tree()
+    empty = not (tree["nodes"] or tree["goals"] or tree["tasks"] or tree.get("skipped"))
+    if empty and (db.get_active_source_goal_ids("notion") or db.get_active_source_task_ids("notion")):
+        # An empty answer (a revoked share, a wrong database id) would soft-delete
+        # every row and take every approved block off the calendar.
+        raise RuntimeError("Notion returned no rows at all; nothing was changed")
     if tree.get("skipped"):
         logger.warning("Notion sync: %d row(s) without a known Level were skipped: %s", len(tree["skipped"]),
                        ", ".join(str(r.get("title")) for r in tree["skipped"][:10]))
-    nodes, nodes_deleted = _apply_nodes(tree["nodes"])
-    goals, goals_deleted = _apply_goals(tree["goals"])
-    tasks, tasks_deleted = _apply_tasks(tree["tasks"])
+    # A row skipped for its Level still exists in Notion: it keeps whatever it
+    # was (and its approved blocks) until its Level is fixed.
+    keep = {r["id"] for r in tree.get("skipped") or []}
+    with db.batch():  # one transaction for the whole tree
+        nodes, nodes_deleted = _apply_nodes(tree["nodes"], keep)
+        goals, goals_deleted = _apply_goals(tree["goals"], keep)
+        tasks, tasks_deleted = _apply_tasks(tree["tasks"], keep)
     return {"nodes": nodes, "nodes_deleted": nodes_deleted, "goals": goals, "goals_deleted": goals_deleted,
             "tasks": tasks, "tasks_deleted": tasks_deleted, "skipped": len(tree.get("skipped") or [])}
 

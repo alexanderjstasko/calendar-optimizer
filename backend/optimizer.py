@@ -36,6 +36,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -462,7 +463,7 @@ def validate_proposals(
     known_items = {t["id"] for t in payload["tasks"]} | {g["id"] for g in payload["goals"]}
     context_ids = {g["id"] for g in payload.get("context_goals", [])}
     known_events = {e["id"] for e in payload["calendar"]}
-    refs = [e.get("ref") for e in events]
+    refs = [e.get("ref") for e in events if e.get("ref")]  # an empty ref names nothing
     duplicate_refs = {r for r in refs if refs.count(r) > 1}
     replaced = {e.get("replaces_event_id") for e in events if e.get("replaces_event_id") and movable_ids and e["replaces_event_id"] in movable_ids}
 
@@ -501,8 +502,14 @@ def validate_proposals(
             elif e["item_type"] == "travel" and e["item_id"] not in known_events and e["item_id"] not in refs:
                 reason = f"travel destination {e['item_id']!r} matches no calendar id or ref"
 
-        checked.append({**e, "status": "invalid" if reason else "proposed", "invalid_reason": reason,
-                        "_start": start, "_end": end})
+        row = {**e, "status": "invalid" if reason else "proposed", "invalid_reason": reason, "_start": start, "_end": end}
+        if reason is None and not e["all_day"]:
+            # Stored as written, the model's offset can disagree with the New York
+            # label (e.g. -05:00 on a summer-time day) and the calendar cannot draw
+            # it; the same instant with New York's own offset always can.
+            row["start"] = start.astimezone(NY).isoformat()
+            row["end"] = end.astimezone(NY).isoformat()
+        checked.append(row)
 
     fixed_timed = [(ev["start_dt"], ev["end_dt"], ev.get("title") or ev["id"]) for ev in fixed_events
                    if not ev["all_day"] and ev.get("id") not in replaced]
@@ -523,6 +530,12 @@ def validate_proposals(
             c["status"], c["invalid_reason"] = "invalid", f"overlaps proposal {last_ref!r}"
             continue
         last_end, last_ref = c["_end"], c.get("ref")
+
+    # Travel to a proposal that was held back has nowhere to go.
+    status_by_ref = {c.get("ref"): c["status"] for c in checked if c.get("ref")}
+    for c in checked:
+        if c["status"] == "proposed" and c["item_type"] == "travel" and status_by_ref.get(c["item_id"], "proposed") != "proposed":
+            c["status"], c["invalid_reason"] = "invalid", f"travel destination {c['item_id']!r} was held back"
 
     for c in checked:
         c.pop("_start", None)
@@ -563,7 +576,28 @@ def plan_window(now: dt.datetime | None = None, horizon_days: int | None = None)
     return min(start, next_monday), next_monday
 
 
-def run_optimizer(
+class RunInProgress(RuntimeError):
+    """Another plan run is still going (the Sunday job, Re-plan on another device)."""
+
+
+# Two plan runs at once would supersede each other's routine blocks and leave a
+# plan built around blocks that are gone.
+_RUN_LOCK = threading.Lock()
+
+
+def run_optimizer(**kwargs) -> dict[str, Any]:
+    """One optimizer pass at a time (a dry run needs no lock); see _run_optimizer."""
+    if kwargs.get("dry_run"):
+        return _run_optimizer(**kwargs)
+    if not _RUN_LOCK.acquire(blocking=False):
+        raise RunInProgress("a plan run is already in progress")
+    try:
+        return _run_optimizer(**kwargs)
+    finally:
+        _RUN_LOCK.release()
+
+
+def _run_optimizer(
     *,
     horizon_days: int | None = None,
     dry_run: bool = False,
@@ -585,7 +619,7 @@ def run_optimizer(
     notion_note = _refresh_notion() if refresh_notion else "Notion refresh skipped"
     # Digest any new decisions into the learned-preferences note first (one
     # small model call only when enough new decisions exist; never fatal).
-    learning = preferences.refresh_learned() if not dry_run else {"refreshed": False, "skipped": "dry run"}
+    learning = preferences.refresh_learned_safely() if not dry_run else {"refreshed": False, "skipped": "dry run"}
     # Routine goals first, in code, as pending proposals of their own run:
     # the model plans around them as if they were fixed, and the person
     # approves them with the rest. A failure here must not stop the plan.
@@ -641,7 +675,7 @@ def run_optimizer(
             max_tokens=_int_setting("LLM_MAX_OUTPUT_TOKENS", DEFAULT_MAX_OUTPUT_TOKENS),
             tool_name=SUBMIT_TOOL_NAME, tool_description=SUBMIT_TOOL_DESCRIPTION,
         )
-    except llm_client.LLMError as exc:
+    except Exception as exc:  # the model call or anything unexpected: never leave the run 'running'
         failed_at = dt.datetime.now(dt.timezone.utc).isoformat()
         db.finish_optimizer_run(run_id, status="failed", finished_at=failed_at, error=f"{type(exc).__name__}: {exc}")
         # Roll the routine part back too, so the old plan stays whole until a run succeeds.
@@ -652,8 +686,11 @@ def run_optimizer(
 
     proposals = validate_proposals(result.data["events"], payload, window_start, window_end, fixed_events)
     now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+    # Only what was undecided when this run started: a new Notion item placed
+    # by the hourly check during the ~6-minute model call stays.
     superseded = db.supersede_open_proposals(now_iso, OPTIMIZER_ITEM_TYPES,
-                                             exclude_run_ids=(routine_run_id,) if routine_run_id else ())
+                                             exclude_run_ids=(routine_run_id,) if routine_run_id else (),
+                                             created_before=started.isoformat())
     db.insert_proposals(run_id, proposals, now_iso)
 
     usage = result.usage or {}

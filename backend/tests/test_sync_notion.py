@@ -47,3 +47,24 @@ def test_blank_task_rows_are_skipped_too(monkeypatch):
     monkeypatch.setattr(sync_notion.notion_adapter, "sync_tasks", lambda: [_task("t1", "Taxes"), _task("t2", None)])
     sync_notion.sync_tasks()
     assert [t["task"] for t in db.get_tasks()] == ["Taxes"]
+
+
+def test_sync_keeps_rows_skipped_for_their_level_and_refuses_an_empty_answer(monkeypatch):
+    import notion_adapter
+    import sync_notion
+    goal = {"source": "notion", "source_goal_id": "g1", "goal": "Run", "frequency": None, "end_date": None,
+            "required_time_hr": 1.0, "priority": None, "location": None, "days_of_week": None,
+            "time_of_day_window": None, "status": "In-Progress", "last_modified": "x"}
+    monkeypatch.setattr(notion_adapter, "fetch_tree", lambda: {"nodes": [], "goals": [goal], "tasks": [], "skipped": []})
+    sync_notion.sync_notion()
+    assert db.get_active_source_goal_ids("notion") == {"g1"}
+    # Its Level cleared by mistake: skipped, but not deleted.
+    monkeypatch.setattr(notion_adapter, "fetch_tree", lambda: {"nodes": [], "goals": [], "tasks": [],
+                                                              "skipped": [{"id": "g1", "title": "Run", "level": None}]})
+    assert sync_notion.sync_notion()["goals_deleted"] == 0
+    assert db.get_active_source_goal_ids("notion") == {"g1"}
+    # Nothing at all (a revoked share): an error, and nothing changes.
+    monkeypatch.setattr(notion_adapter, "fetch_tree", lambda: {"nodes": [], "goals": [], "tasks": [], "skipped": []})
+    with pytest.raises(RuntimeError):
+        sync_notion.sync_notion()
+    assert db.get_active_source_goal_ids("notion") == {"g1"}

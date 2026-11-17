@@ -312,14 +312,23 @@ function freeTimeBackground(events, hours = DEFAULT_HOURS, awake = DEFAULT_GRID.
 // Fitting to the drawn window happens later, in pushEvents, so a change of
 // hours refits the same events.
 function withTemporalDates(events) {
-  return events.map(({ people, ...event }) => ({
-    ...event,
-    // The event modal renders `people.length && ...`, which prints a stray
-    // "0" for an empty list -- only pass people when there are some.
-    ...(people?.length ? { people } : {}),
-    start: toTemporalValue(event.start),
-    end: toTemporalValue(event.end),
-  }))
+  const out = []
+  for (const { people, ...event } of events) {
+    try {
+      out.push({
+        ...event,
+        // The event modal renders `people.length && ...`, which prints a stray
+        // "0" for an empty list -- only pass people when there are some.
+        ...(people?.length ? { people } : {}),
+        start: toTemporalValue(event.start),
+        end: toTemporalValue(event.end),
+      })
+    } catch (err) {
+      // One unreadable event must not keep the rest of the calendar from drawing.
+      console.error('Skipped an event with unreadable times:', event.id, err)
+    }
+  }
+  return out
 }
 
 // Approved planned blocks can be dragged in the Day and Week grids
@@ -460,6 +469,11 @@ export function App() {
   const panesRef = useRef(null)
   const mainPaneRef = useRef(null)
   const latestEvents = useRef([])
+  const loadSeq = useRef(0) // the newest reloadCalendar() call
+  // What the calendars were last drawn from (events, preview, hours, layout as
+  // JSON): a refetch that brings nothing new skips the redraw.
+  const dataText = useRef({ events: '', preview: '', hours: '' })
+  const drawnFrom = useRef('')
   const drawnById = useRef(new Map()) // the events as drawn (clipped), for the drag layer
   const previewEvents = useRef([])
   const previewOnRef = useRef(previewOn)
@@ -634,6 +648,7 @@ export function App() {
   // tab), so a test must wait for the rows, not for a fixed delay (2026-10-19).
   const applied = useRef(`${initialHours.start}-${initialHours.end}@${INITIAL_HOUR_PX}`)
   const appliedPm = useRef(`${DEFAULT_GRID.afternoon.start}-${DEFAULT_GRID.afternoon.end}`)
+  const appliedPmHeight = useRef(0)
   useEffect(() => {
     if (!rendered) return
     const key = `${mainHours.start}-${mainHours.end}@${hourPx}`
@@ -649,7 +664,11 @@ export function App() {
         appliedPm.current = pmKey
         pmControls.setDayBoundaries(grid.afternoon)
       }
-      pmControls.setWeekOptions({ gridHeight: hoursIn(grid.afternoon) * hourPx })
+      const pmHeight = hoursIn(grid.afternoon) * hourPx
+      if (appliedPmHeight.current !== pmHeight) {
+        pmControls.setWeekOptions({ gridHeight: pmHeight })
+        appliedPmHeight.current = pmHeight // only once it took (the pane may not be rendered yet)
+      }
     } catch {
       /* afternoon pane not rendered yet */
     }
@@ -784,7 +803,12 @@ export function App() {
   // an hour height): the stacks depend on it.
   const laidOut = useRef('')
   const layoutKey = () => (navRef.current.view === 'month' ? 'month' : `grid@${hourPxRef.current}`)
+  const drawSignature = () => {
+    const t = dataText.current
+    return `${t.events}|${previewOnRef.current ? t.preview : ''}|${t.hours}|${layoutKey()}`
+  }
   function pushEvents() {
+    drawnFrom.current = drawSignature()
     const awake = gridRef.current.awake
     const raw = previewOnRef.current ? latestEvents.current.concat(previewEvents.current) : latestEvents.current
     const all = raw.map((e) => asMovable(fitToAwakeWindow(e, awake)))
@@ -807,16 +831,10 @@ export function App() {
     requestAnimationFrame(fitLayout)
   }
 
-  async function loadEvents() {
-    // Sets/replaces every event currently in the calendar. Once /sync
-    // returns real added/updated/removed deltas, swap this for targeted
-    // eventsService.add() / .update() / .remove() calls instead.
-    latestEvents.current = withTemporalDates(await getJson('/events'))
-    lastLoadAt.current = Date.now()
-  }
 
   async function loadPreview() {
     const proposals = await getJson('/events/preview')
+    dataText.current.preview = JSON.stringify(proposals)
     previewEvents.current = withTemporalDates(proposals).map(asProposed)
     setPreviewCount(proposals.length)
   }
@@ -832,6 +850,7 @@ export function App() {
   // The Hours tab's document; the bands behind the grid are drawn from it.
   function applyHours(status) {
     hoursRef.current = status.hours
+    dataText.current.hours = JSON.stringify(status.hours)
     gridRef.current = gridWindowFor(status.hours) // before the next render: pushEvents may run first
     setHoursStatus(status)
   }
@@ -845,8 +864,19 @@ export function App() {
   }
 
   // Events plus (when on) the preview; the preview failing never hides events.
+  // Reloads overlap (the 5-min refetch, foreground return, a drop, a decision):
+  // only the newest one draws, so an older /events answer never puts a moved
+  // block back where it was. A success also clears an earlier load error.
   async function reloadCalendar() {
-    await Promise.all([loadEvents(), loadHours()])
+    const seq = ++loadSeq.current
+    const [events] = await Promise.all([getJson('/events'), loadHours()])
+    if (seq !== loadSeq.current) return
+    lastLoadAt.current = Date.now()
+    const eventsText = JSON.stringify(events)
+    if (eventsText !== dataText.current.events) {
+      dataText.current.events = eventsText
+      latestEvents.current = withTemporalDates(events)
+    }
     if (previewOnRef.current) {
       try {
         await loadPreview()
@@ -856,7 +886,9 @@ export function App() {
         setPreviewError("Couldn't load the preview.")
       }
     }
-    pushEvents()
+    if (seq !== loadSeq.current) return
+    if (drawSignature() !== drawnFrom.current) pushEvents()
+    setStatus('ready')
   }
 
   // Initial load on mount.
@@ -913,9 +945,15 @@ export function App() {
     }
   }
 
-  // After a decision in the Events/Plan tab: the calendar and badges change.
-  const handleCalendarChanged = useCallback(() => {
+  // After a decision the calendar and the badges change. The Events/Plan tabs
+  // already report their fresh summary through onSummary, so they only need
+  // the calendar reloaded; the slot sheet needs both.
+  const handleTabChanged = useCallback(() => {
     reloadCalendar().catch((err) => console.error('Calendar refresh failed:', err))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const handleCalendarChanged = useCallback(() => {
+    handleTabChanged()
     refreshSummary()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1176,7 +1214,7 @@ export function App() {
           <EventsTab
             apiUrl={API_URL}
             active={tab === 'events'}
-            onCalendarChanged={handleCalendarChanged}
+            onCalendarChanged={handleTabChanged}
             onSummary={handleSummary}
             navigate={navigate}
           />
@@ -1185,7 +1223,7 @@ export function App() {
           <PlanTab
             apiUrl={API_URL}
             active={tab === 'plan'}
-            onCalendarChanged={handleCalendarChanged}
+            onCalendarChanged={handleTabChanged}
             onSummary={handleSummary}
             navigate={navigate}
           />

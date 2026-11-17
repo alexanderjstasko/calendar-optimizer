@@ -68,7 +68,11 @@ Google/Apple/Outlook/Partiful.
   All-day events store `YYYY-MM-DD` with an exclusive end.
 - Event ids are `"{source}_{source_event_id}"`, sanitized for CSS (Schedule-X rejects `:`/`@`).
 - Every sync is fetch -> diff -> upsert / soft-delete; never blind overwrites.
-- Batches write in one transaction (`upsert_events`); the syncs start 20 s apart.
+- Batches write in one transaction (`upsert_events`, and `with db.batch():` around many single-row
+  writes: every `get_conn()` in that thread shares one connection and one commit); the syncs start
+  20 s apart.
+- `promote_proposal` claims the row with a guarded UPDATE and writes the event and links in the same
+  transaction; a move's old block leaves the calendar only after the move is promoted.
 
 ## Notion
 

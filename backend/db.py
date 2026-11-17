@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import re
+import threading
 
 DB_PATH = Path(__file__).parent / "events.db"
 
@@ -262,8 +263,17 @@ CREATE TABLE IF NOT EXISTS places (
 """
 
 
+# Inside db.batch() every get_conn() of that thread shares one connection and
+# one commit (see batch()).
+_shared = threading.local()
+
+
 @contextmanager
 def get_conn():
+    shared = getattr(_shared, "conn", None)
+    if shared is not None:
+        yield shared  # the enclosing batch() commits
+        return
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -276,6 +286,24 @@ def get_conn():
         conn.commit()
     finally:
         conn.close()
+
+
+@contextmanager
+def batch():
+    """
+    Run many single-row writes as one transaction on one connection: one
+    commit (one fsync on the Pi's SD card) instead of one per row, and all or
+    nothing if something fails. Nested calls join the outer batch.
+    """
+    if getattr(_shared, "conn", None) is not None:
+        yield
+        return
+    with get_conn() as conn:
+        _shared.conn = conn
+        try:
+            yield
+        finally:
+            _shared.conn = None
 
 
 # Columns added after a table first shipped. CREATE TABLE IF NOT EXISTS never
@@ -324,6 +352,8 @@ _COLUMN_MIGRATIONS: dict[str, dict[str, str]] = {
         "replaced_by": "TEXT",          # set on the old block's proposal once the move was approved
         "conflict_event_id": "TEXT",    # an approved block that a synced event now overlaps (triggers.py)
         "conflict_found_at": "TEXT",
+        "move_attempted_at": "TEXT",
+        "settle_targets": "TEXT",       # time_tracker: JSON {key: value about to be written to Notion}, so a retry never adds twice    # when the conflict check last asked for a move for this block (once per clash)
         "notified_at": "TEXT",          # trigger proposals: when the hourly change email listed it
     },
 }
@@ -464,6 +494,26 @@ def get_events(calendar_id: str = None, source: str = None, include_deleted: boo
         return [dict(row) for row in rows]
 
 
+def _zoned(value: str, zone: str | None) -> str:
+    """
+    'ISO[Zone]' with the offset that zone really has at that instant. Temporal
+    rejects a bracketed zone whose offset disagrees (an event written in one
+    zone and labelled with another, a missing label), and one such event
+    would stop the whole calendar from loading.
+    """
+    try:
+        tz = ZoneInfo(zone) if zone else ZoneInfo(DISPLAY_TZ)
+    except Exception:  # noqa: BLE001 -- an unknown zone name: show it in the display zone
+        tz, zone = ZoneInfo(DISPLAY_TZ), None
+    try:
+        moment = _dt.datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return f"{value}[{zone or DISPLAY_TZ}]"
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=tz)  # floating time: wall clock in that zone
+    return f"{moment.astimezone(tz).isoformat()}[{zone or DISPLAY_TZ}]"
+
+
 def to_schedule_x_event(row: dict) -> dict:
     """
     Converts one raw DB row into the exact shape Schedule-X's `events` array
@@ -484,8 +534,7 @@ def to_schedule_x_event(row: dict) -> dict:
         if end and end > start:
             end = (_dt.date.fromisoformat(end[:10]) - _dt.timedelta(days=1)).isoformat()
     else:
-        start = f"{row['start']}[{row['timezone']}]"
-        end = f"{row['end']}[{row['timezone']}]"
+        start, end = _zoned(row["start"], row["timezone"]), _zoned(row["end"], row["timezone"])
 
     return {
         "id": row["id"],
@@ -507,12 +556,18 @@ def get_schedule_x_events(calendar_id: str = None) -> list[dict]:
     a synced event now overlaps (triggers.py) carries `conflict` {event_id,
     title} and the CSS class `has-conflict`, so the calendar can mark it.
     """
-    rows = get_events(calendar_id=calendar_id, include_deleted=False)
+    # Only what the calendar draws: raw_json (whole provider payloads) stays in the database.
+    query = ("SELECT id, calendar_id, title, description, location, people, start, end, all_day, timezone "
+             "FROM events WHERE deleted_at IS NULL AND status != 'cancelled'")
+    params: list = []
+    if calendar_id:
+        query += " AND calendar_id = ?"
+        params.append(calendar_id)
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(query + " ORDER BY start ASC", params).fetchall()]
     conflicts = get_conflicts()
     out = []
     for row in rows:
-        if row["status"] == "cancelled":
-            continue
         shaped = to_schedule_x_event(row)
         clash = conflicts.get(row["id"])
         if clash:
@@ -630,8 +685,9 @@ def upsert_tree_node(node: dict) -> None:
 
 
 def upsert_tree_nodes(nodes: list[dict]) -> None:
-    for node in nodes:
-        upsert_tree_node(node)
+    with batch():
+        for node in nodes:
+            upsert_tree_node(node)
 
 
 def get_active_source_node_ids(source: str) -> set[str]:
@@ -710,9 +766,10 @@ def upsert_task(task: dict):
 
 
 def upsert_tasks(tasks: list[dict]):
-    """Convenience wrapper to upsert a batch of tasks in one go."""
-    for task in tasks:
-        upsert_task(task)
+    """Upsert a batch of tasks in one transaction."""
+    with batch():
+        for task in tasks:
+            upsert_task(task)
 
 
 def upsert_goal(goal: dict):
@@ -799,9 +856,10 @@ def upsert_goal(goal: dict):
 
 
 def upsert_goals(goals: list[dict]):
-    """Convenience wrapper to upsert a batch of goals in one go."""
-    for goal in goals:
-        upsert_goal(goal)
+    """Upsert a batch of goals in one transaction."""
+    with batch():
+        for goal in goals:
+            upsert_goal(goal)
 
 
 def get_active_source_task_ids(source: str) -> set[str]:
@@ -867,47 +925,6 @@ def get_goals(include_deleted: bool = False) -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(query).fetchall()
         return [dict(row) for row in rows]
-
-
-def mark_task_scheduled(source: str, source_task_id: str, event_id: str):
-    """
-    Appends an events.id to this task's scheduled_event_ids list. Meant to
-    be called by the future optimizer step right after it creates a
-    calendar event for this task, so it doesn't get scheduled twice on the
-    next optimization pass.
-    """
-    with get_conn() as conn:
-        row = conn.execute(
-            "SELECT scheduled_event_ids FROM tasks WHERE source = ? AND source_task_id = ?",
-            (source, source_task_id),
-        ).fetchone()
-        existing = json.loads(row["scheduled_event_ids"]) if row and row["scheduled_event_ids"] else []
-        if event_id not in existing:
-            existing.append(event_id)
-        conn.execute(
-            "UPDATE tasks SET scheduled_event_ids = ? WHERE source = ? AND source_task_id = ?",
-            (json.dumps(existing), source, source_task_id),
-        )
-
-
-def mark_goal_scheduled(source: str, source_goal_id: str, event_id: str):
-    """
-    Same as mark_task_scheduled, but for goals. A single goal will
-    typically accumulate multiple event_ids over time (e.g. each week's
-    "Rockclimb" occurrence), unlike a task which usually gets just one.
-    """
-    with get_conn() as conn:
-        row = conn.execute(
-            "SELECT scheduled_event_ids FROM goals WHERE source = ? AND source_goal_id = ?",
-            (source, source_goal_id),
-        ).fetchone()
-        existing = json.loads(row["scheduled_event_ids"]) if row and row["scheduled_event_ids"] else []
-        if event_id not in existing:
-            existing.append(event_id)
-        conn.execute(
-            "UPDATE goals SET scheduled_event_ids = ? WHERE source = ? AND source_goal_id = ?",
-            (json.dumps(existing), source, source_goal_id),
-        )
 
 
 # --- optimizer: calendar window, schedulable items, runs, proposals ----------
@@ -1014,14 +1031,16 @@ def get_events_between(window_start: _dt.datetime, window_end: _dt.datetime) -> 
     """
     tz = ZoneInfo(DISPLAY_TZ)
     prefix = (window_start - _dt.timedelta(days=1)).strftime("%Y-%m-%d")
+    # Date prefixes with a day of slack each side (stored offsets vary by source).
+    upper = (window_end + _dt.timedelta(days=2)).strftime("%Y-%m-%d")
     with get_conn() as conn:
         rows = conn.execute(
             """
             SELECT * FROM events
-            WHERE deleted_at IS NULL AND status != 'cancelled' AND end >= ?
+            WHERE deleted_at IS NULL AND status != 'cancelled' AND end >= ? AND start < ?
             ORDER BY start ASC
             """,
-            (prefix,),
+            (prefix, upper),
         ).fetchall()
 
     selected: list[dict] = []
@@ -1114,19 +1133,20 @@ def get_tree() -> list[dict]:
 
 
 def mark_item_scheduled(item_type: str, item_id: str, event_id: str) -> None:
-    """Like mark_task_scheduled/mark_goal_scheduled but keyed by the row's own id."""
-    table = {"task": "tasks", "goal": "goals"}[item_type]
+    """Record `event_id` on the task/goal row keyed by its own id."""
     with get_conn() as conn:
-        row = conn.execute(f"SELECT scheduled_event_ids FROM {table} WHERE id = ?", (item_id,)).fetchone()
-        if row is None:
-            return
-        existing = json.loads(row["scheduled_event_ids"]) if row["scheduled_event_ids"] else []
-        if event_id not in existing:
-            existing.append(event_id)
-        conn.execute(
-            f"UPDATE {table} SET scheduled_event_ids = ? WHERE id = ?",
-            (json.dumps(existing), item_id),
-        )
+        _mark_item_scheduled(conn, item_type, item_id, event_id)
+
+
+def _mark_item_scheduled(conn: sqlite3.Connection, item_type: str, item_id: str, event_id: str) -> None:
+    table = {"task": "tasks", "goal": "goals"}[item_type]
+    row = conn.execute(f"SELECT scheduled_event_ids FROM {table} WHERE id = ?", (item_id,)).fetchone()
+    if row is None:
+        return
+    existing = json.loads(row["scheduled_event_ids"]) if row["scheduled_event_ids"] else []
+    if event_id not in existing:
+        existing.append(event_id)
+        conn.execute(f"UPDATE {table} SET scheduled_event_ids = ? WHERE id = ?", (json.dumps(existing), item_id))
 
 
 def create_optimizer_run(
@@ -1163,18 +1183,25 @@ def finish_optimizer_run(run_id: str, *, status: str, finished_at: str, **fields
 _RUN_REQUEST_COLUMNS = ("system_prompt", "payload_json")
 
 
+def _run_summary_columns(conn: sqlite3.Connection) -> str:
+    """optimizer_runs' columns minus the stored request (tens of kB per run), for the polled summaries."""
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(optimizer_runs)") if r["name"] not in _RUN_REQUEST_COLUMNS]
+    return ", ".join(cols)
+
+
 def get_optimizer_runs(limit: int = 20, kind: str | None = None) -> list[dict]:
     """Run summaries, newest first, without the (large) stored request; see get_optimizer_run()."""
     with get_conn() as conn:
+        cols = _run_summary_columns(conn)
         if kind:
             rows = conn.execute(
-                "SELECT * FROM optimizer_runs WHERE kind = ? ORDER BY started_at DESC LIMIT ?", (kind, limit)
+                f"SELECT {cols} FROM optimizer_runs WHERE kind = ? ORDER BY started_at DESC LIMIT ?", (kind, limit)
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM optimizer_runs ORDER BY started_at DESC LIMIT ?", (limit,)
+                f"SELECT {cols} FROM optimizer_runs ORDER BY started_at DESC LIMIT ?", (limit,)
             ).fetchall()
-        return [{k: v for k, v in dict(row).items() if k not in _RUN_REQUEST_COLUMNS} for row in rows]
+        return [dict(row) for row in rows]
 
 
 def get_optimizer_run(run_id: str) -> dict | None:
@@ -1185,7 +1212,7 @@ def get_optimizer_run(run_id: str) -> dict | None:
 
 
 def supersede_open_proposals(now_iso: str, item_types: tuple[str, ...] | None = None,
-                             exclude_run_ids: tuple[str, ...] = ()) -> int:
+                             exclude_run_ids: tuple[str, ...] = (), created_before: str | None = None) -> int:
     """
     A new run replaces the still-undecided proposals (shown or queued) of its
     own kind: the optimizer passes its item types, the scout passes
@@ -1200,6 +1227,9 @@ def supersede_open_proposals(now_iso: str, item_types: tuple[str, ...] | None = 
     if exclude_run_ids:
         sql += f" AND run_id NOT IN ({','.join('?' for _ in exclude_run_ids)})"
         params += list(exclude_run_ids)
+    if created_before:
+        sql += " AND created_at < ?"
+        params.append(created_before)
     with get_conn() as conn:
         return conn.execute(sql, params).rowcount
 
@@ -1340,11 +1370,11 @@ def get_latest_run(kind: str) -> dict | None:
     """
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT * FROM optimizer_runs WHERE COALESCE(kind, 'optimizer') = ? "
+            f"SELECT {_run_summary_columns(conn)} FROM optimizer_runs WHERE COALESCE(kind, 'optimizer') = ? "
             "ORDER BY status != 'succeeded', started_at DESC LIMIT 1",
             (kind,),
         ).fetchone()
-    return {k: v for k, v in dict(row).items() if k not in _RUN_REQUEST_COLUMNS} if row else None
+    return dict(row) if row else None
 
 
 def proposal_to_schedule_x_event(row: dict) -> dict:
@@ -1527,50 +1557,55 @@ def promote_proposal(proposal_id: str, now_iso: str) -> str | None:
     calendar_id='optimizer'), record the event id on the task/goal it fulfils,
     and mark the proposal promoted. Returns the events.id, or None when the
     proposal does not exist or was already decided.
-    """
-    proposal = get_proposal(proposal_id)
-    if proposal is None or proposal["status"] not in ("proposed", "approved"):
-        return None
 
-    upsert_event(
-        {
-            "source": OPTIMIZER_SOURCE,
-            "source_event_id": proposal_id,
-            "calendar_id": OPTIMIZER_CALENDAR_ID,
-            "title": proposal["title"],
-            "description": proposal["description"],
-            "location": proposal["location"],
-            "people": [],
-            "start": proposal["start"],
-            "end": proposal["end"],
-            "all_day": bool(proposal["all_day"]),
-            "timezone": proposal["timezone"],
-            "status": "confirmed",
-            "last_modified": now_iso,
-            "raw_json": {
-                "proposal_id": proposal_id,
-                "run_id": proposal["run_id"],
-                "item_type": proposal["item_type"],
-                "item_id": proposal["item_id"],
-                "goal_id": proposal.get("goal_id"),
-                "url": proposal.get("url"),
-                "rationale": proposal["rationale"],
-            },
-        }
-    )
+    One transaction, claimed by a guarded UPDATE first: a proposal that a
+    scheduler job superseded a moment ago is never promoted anyway, and a power
+    cut never leaves an event on the calendar behind an undecided proposal.
+    """
     event_id = sanitize_id(f"{OPTIMIZER_SOURCE}_{proposal_id}")
-    if proposal["item_type"] in ("task", "goal") and proposal["item_id"]:
-        mark_item_scheduled(proposal["item_type"], proposal["item_id"], event_id)
-    elif proposal["item_type"] == "event":
-        if proposal.get("goal_id"):
-            mark_item_scheduled("goal", proposal["goal_id"], event_id)
-        if proposal.get("discovered_event_id"):
-            set_discovered_decision(proposal["discovered_event_id"], "approved")
     with get_conn() as conn:
-        conn.execute(
-            "UPDATE proposed_events SET status = 'promoted', decided_at = ?, promoted_event_id = ? WHERE id = ?",
+        claimed = conn.execute(
+            "UPDATE proposed_events SET status = 'promoted', decided_at = ?, promoted_event_id = ? "
+            "WHERE id = ? AND status IN ('proposed', 'approved')",
             (now_iso, event_id, proposal_id),
+        ).rowcount
+        if not claimed:
+            return None
+        proposal = dict(conn.execute("SELECT * FROM proposed_events WHERE id = ?", (proposal_id,)).fetchone())
+        _upsert_event(
+            conn,
+            {
+                "source": OPTIMIZER_SOURCE,
+                "source_event_id": proposal_id,
+                "calendar_id": OPTIMIZER_CALENDAR_ID,
+                "title": proposal["title"],
+                "description": proposal["description"],
+                "location": proposal["location"],
+                "people": [],
+                "start": proposal["start"],
+                "end": proposal["end"],
+                "all_day": bool(proposal["all_day"]),
+                "timezone": proposal["timezone"],
+                "status": "confirmed",
+                "last_modified": now_iso,
+                "raw_json": {
+                    "proposal_id": proposal_id,
+                    "run_id": proposal["run_id"],
+                    "item_type": proposal["item_type"],
+                    "item_id": proposal["item_id"],
+                    "goal_id": proposal.get("goal_id"),
+                    "url": proposal.get("url"),
+                    "rationale": proposal["rationale"],
+                },
+            },
         )
+        if proposal["item_type"] in ("task", "goal") and proposal["item_id"]:
+            _mark_item_scheduled(conn, proposal["item_type"], proposal["item_id"], event_id)
+        elif proposal["item_type"] == "event":
+            if proposal.get("goal_id"):
+                _mark_item_scheduled(conn, "goal", proposal["goal_id"], event_id)
+            if proposal.get("discovered_event_id"):
+                conn.execute("UPDATE discovered_events SET decision = 'approved' WHERE id = ?", (proposal["discovered_event_id"],))
     return event_id
 
 
@@ -1670,6 +1705,21 @@ def set_goal_time_spent(goal_id: str, hours: float | None) -> None:
         conn.execute("UPDATE goals SET time_spent_hr = ? WHERE id = ?", (hours, goal_id))
 
 
+def get_settle_target(proposal_id: str, key: str):
+    with get_conn() as conn:
+        row = conn.execute("SELECT settle_targets FROM proposed_events WHERE id = ?", (proposal_id,)).fetchone()
+    return (json.loads(row["settle_targets"]) if row and row["settle_targets"] else {}).get(key)
+
+
+def set_settle_target(proposal_id: str, key: str, value) -> None:
+    """Remember the value a settle pass is about to write for this block (see time_tracker._add_once)."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT settle_targets FROM proposed_events WHERE id = ?", (proposal_id,)).fetchone()
+        targets = json.loads(row["settle_targets"]) if row and row["settle_targets"] else {}
+        targets[key] = value
+        conn.execute("UPDATE proposed_events SET settle_targets = ? WHERE id = ?", (json.dumps(targets), proposal_id))
+
+
 def mark_proposal_settled(proposal_id: str, settled_at: str, hours: float) -> bool:
     """Record that this block's hours were written (or that nothing was owed). Idempotent."""
     with get_conn() as conn:
@@ -1693,28 +1743,17 @@ def revoke_proposal(proposal_id: str, now_iso: str) -> str | None:
     proposal to `proposed` so it can be approved again or rejected
     (promoted_event_id is kept for the audit trail; a re-approval revives the
     same event row). A scout event's recorded decision is cleared. Returns
-    the event id, or None if the proposal was not promoted.
+    the event id, or None if the proposal was not promoted or was already
+    settled to Notion.
     """
     proposal = get_proposal(proposal_id)
     if proposal is None or proposal["status"] != "promoted" or not proposal["promoted_event_id"]:
         return None
+    if proposal.get("settled_at"):
+        return None  # already written to Notion (time spent, sessions): it happened
     event_id = proposal["promoted_event_id"]
     soft_delete_event(OPTIMIZER_SOURCE, proposal_id, now_iso)
-    links = []
-    if proposal["item_type"] in ("task", "goal") and proposal["item_id"]:
-        links.append((proposal["item_type"], proposal["item_id"]))
-    if proposal["item_type"] == "event" and proposal.get("goal_id"):
-        links.append(("goal", proposal["goal_id"]))
-    for item_type, item_id in links:
-        table = {"task": "tasks", "goal": "goals"}[item_type]
-        with get_conn() as conn:
-            row = conn.execute(f"SELECT scheduled_event_ids FROM {table} WHERE id = ?", (item_id,)).fetchone()
-            if row and row["scheduled_event_ids"]:
-                remaining = [e for e in json.loads(row["scheduled_event_ids"]) if e != event_id]
-                conn.execute(
-                    f"UPDATE {table} SET scheduled_event_ids = ? WHERE id = ?",
-                    (json.dumps(remaining), item_id),
-                )
+    _unlink_scheduled(proposal, event_id)
     if proposal["item_type"] == "event" and proposal.get("discovered_event_id"):
         set_discovered_decision(proposal["discovered_event_id"], None)
     with get_conn() as conn:
@@ -1772,8 +1811,9 @@ def upsert_website(site: dict) -> None:
 
 
 def upsert_websites(sites: list[dict]) -> None:
-    for site in sites:
-        upsert_website(site)
+    with batch():
+        for site in sites:
+            upsert_website(site)
 
 
 def get_websites(include_deleted: bool = False) -> list[dict]:
@@ -1839,6 +1879,7 @@ def upsert_discovered_events(events: list[dict], website_id: str | None, seen_at
                 ON CONFLICT(id) DO UPDATE SET
                     website_id = COALESCE(excluded.website_id, discovered_events.website_id),
                     title = excluded.title,
+                    start = excluded.start, all_day = excluded.all_day,
                     end = excluded.end, location = excluded.location, url = excluded.url,
                     cost = excluded.cost, category = excluded.category, summary = excluded.summary,
                     last_seen = excluded.last_seen, raw_json = excluded.raw_json
@@ -2142,8 +2183,9 @@ def get_promoted_plan_blocks(window_start: _dt.datetime, window_end: _dt.datetim
             """
             SELECT p.*, e.start AS event_start, e.end AS event_end, e.all_day AS event_all_day, e.title AS event_title
             FROM proposed_events p JOIN events e ON e.id = p.promoted_event_id
-            WHERE p.status = 'promoted' AND e.deleted_at IS NULL AND e.status != 'cancelled'
-            """
+            WHERE p.status = 'promoted' AND e.deleted_at IS NULL AND e.status != 'cancelled' AND e.end >= ?
+            """,
+            ((window_start - _dt.timedelta(days=1)).strftime("%Y-%m-%d"),),
         ).fetchall()
     out = []
     for r in rows:
@@ -2156,6 +2198,19 @@ def get_promoted_plan_blocks(window_start: _dt.datetime, window_end: _dt.datetim
         if row["start_dt"] < window_end and row["end_dt"] > window_start:
             out.append(row)
     return out
+
+
+def set_move_attempted(proposal_id: str, at: str) -> None:
+    with get_conn() as conn:
+        conn.execute("UPDATE proposed_events SET move_attempted_at = ? WHERE id = ?", (at, proposal_id))
+
+
+def get_moves_for(event_id: str) -> list[dict]:
+    """The move proposals (any status) that would take the place of approved block `event_id`."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT id, status, created_at FROM proposed_events WHERE replaces_event_id = ?",
+                            (event_id,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def set_conflict(proposal_id: str, conflict_event_id: str | None, found_at: str | None) -> None:
@@ -2327,19 +2382,6 @@ def mark_proposals_notified(ids: list[str], at: str) -> None:
         conn.execute(f"UPDATE proposed_events SET notified_at = ? WHERE id IN ({','.join('?' for _ in ids)})", (at, *ids))
 
 
-def get_runs_since(kind: str, since_iso: str) -> list[dict]:
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM optimizer_runs WHERE kind = ? AND started_at > ? ORDER BY started_at ASC", (kind, since_iso)
-        ).fetchall()
-    return [{k: v for k, v in dict(r).items() if k not in _RUN_REQUEST_COLUMNS} for r in rows]
-
-
-if __name__ == "__main__":
-    init_db()
-    print(f"Initialized database at {DB_PATH}")
-
-
 # --- places (geo.py) -----------------------------------------------------------------
 
 
@@ -2371,3 +2413,8 @@ def get_discovered_summaries(ids: list[str]) -> dict[str, str]:
     with get_conn() as conn:
         rows = conn.execute(f"SELECT id, summary FROM discovered_events WHERE id IN ({','.join('?' * len(ids))})", ids).fetchall()
     return {r["id"]: r["summary"] or "" for r in rows}
+
+
+if __name__ == "__main__":
+    init_db()
+    print(f"Initialized database at {DB_PATH}")

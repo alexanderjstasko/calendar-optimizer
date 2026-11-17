@@ -2,7 +2,7 @@
 //   GET  /review/summary                       both tabs' data in one call
 //   POST /optimizer/proposals/batch            {action: approve|reject|revoke, ids}
 //   POST /optimizer/proposals/{id}/approve     optional body {start, end} = approve at that time
-//   POST /optimizer/proposals/{id}/reject|revoke|reschedule
+//   POST /optimizer/proposals/{id}/reject|revoke
 //   POST /scout/reload                         next page of event options (queue or model)
 //   POST /optimizer/run                        re-plan (a model call, minutes)
 //   POST /scout/fetch, GET /scout/status       the Events tab's overflow menu
@@ -66,7 +66,6 @@ export function createApi(apiUrl = '') {
     approve: (id, times) => post(`${one(id)}/approve`, times),
     reject: (id) => post(`${one(id)}/reject`),
     revoke: (id) => post(`${one(id)}/revoke`),
-    reschedule: (id, times) => post(`${one(id)}/reschedule`, times),
     reload: () => post('/scout/reload'),
     replan: () => post('/optimizer/run'),
     fetchSites: () => post('/scout/fetch'),
