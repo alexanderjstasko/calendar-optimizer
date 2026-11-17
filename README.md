@@ -20,8 +20,8 @@ on your machine.
 ## Quick start (local)
 
 ```bash
-git clone https://github.com/<owner>/calendar_optimizer.git
-cd calendar_optimizer
+git clone https://github.com/alexanderjstasko/calendar-optimizer.git
+cd calendar-optimizer
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 cp .env.example .env      # then fill it in, see below
